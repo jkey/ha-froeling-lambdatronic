@@ -28,7 +28,7 @@ from .coordinator import (
 )
 from .entity import components
 
-PLATFORMS = [Platform.BINARY_SENSOR, Platform.BUTTON, Platform.NUMBER, Platform.SENSOR]
+PLATFORMS = [Platform.BINARY_SENSOR, Platform.BUTTON, Platform.NUMBER, Platform.SELECT, Platform.SENSOR]
 
 
 def selected_equipment(entry: FroelingConfigEntry) -> Equipment:
