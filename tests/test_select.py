@@ -165,6 +165,8 @@ async def test_system_mode_errors(
     """Cloud errors become translated errors; side effects follow the error kind."""
     await setup_integration(hass, mock_config_entry)
     mock_cloud.set_operating_mode.side_effect = error
+    if isinstance(error, RemoteControlDisabledError):
+        mock_cloud.get_boiler_state.return_value = CloudBoilerState(OperatingMode.AUTOMATIC, False)
 
     with pytest.raises(HomeAssistantError) as raised:
         await _select(hass, SYSTEM_MODE, "continuous_load")
@@ -176,3 +178,22 @@ async def test_system_mode_errors(
     assert bool(flows) is isinstance(error, AuthenticationError)
     if flows:
         assert flows[0]["context"]["source"] == SOURCE_REAUTH
+
+
+async def test_system_mode_unavailable_after_remote_control_disabled(
+    hass: HomeAssistant, mock_client: MagicMock, mock_cloud: MagicMock, mock_config_entry: MockConfigEntry
+) -> None:
+    """A write refused because remote control is off makes the select unavailable at once."""
+    await setup_integration(hass, mock_config_entry)
+    state = hass.states.get(SYSTEM_MODE)
+    assert state is not None
+    assert state.state == "automatic"
+    mock_cloud.set_operating_mode.side_effect = RemoteControlDisabledError("off")
+    mock_cloud.get_boiler_state.return_value = CloudBoilerState(OperatingMode.AUTOMATIC, False)
+
+    with pytest.raises(HomeAssistantError):
+        await _select(hass, SYSTEM_MODE, "continuous_load")
+
+    state = hass.states.get(SYSTEM_MODE)
+    assert state is not None
+    assert state.state == STATE_UNAVAILABLE

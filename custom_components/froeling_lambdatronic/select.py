@@ -118,6 +118,8 @@ class FroelingSystemModeSelect(FroelingEntity[ValuesCoordinator], SelectEntity):
             raise HomeAssistantError(translation_domain=DOMAIN, translation_key="cloud_auth_failed") from err
         except RemoteControlDisabledError as err:
             async_create_remote_control_issue(self.hass, self._cloud.config_entry)
+            # Reread the permission so that the select becomes unavailable right away.
+            await self._cloud.async_request_refresh()
             raise HomeAssistantError(
                 translation_domain=DOMAIN, translation_key="remote_control_disabled"
             ) from err
