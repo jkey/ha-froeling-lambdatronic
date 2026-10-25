@@ -89,7 +89,7 @@ folgen.
 | Kessel (Einstellungen) | Kessel-Solltemperatur (70–90 °C), Pelletlager Restbestand und Mindestbestand (t) |
 | Kessel (Auswahl) | Anlagen-Betriebsart Automatik/Brauchwasser/Dauerlast – nur mit Fröling Connect |
 | Heizkreis | Vorlauf Ist, Vorlauf Soll, Vorlauf laut Heizkurve (mit Attribut `kurve`), Raumtemperatur (deaktiviert), Betriebsart (Aus/Automatik/Extraheizen/Absenken/Dauerabsenken/Partybetrieb) |
-| Heizkreis (Einstellungen) | Heizkurve Vorlauf bei +10 °C und −10 °C, Absenkung, Heizgrenze Heizbetrieb und Absenkbetrieb |
+| Heizkreis (Einstellungen) | Heizkurve Vorlauf bei plus 10 °C und bei minus 10 °C, Absenkung, Heizgrenze Heizbetrieb und Absenkbetrieb |
 | Warmwasser | Temperatur, Pumpe; Einstellungen Solltemperatur und Nachladen unter |
 | Puffer | Temperatur oben, Temperatur unten, Pumpe |
 
@@ -216,7 +216,7 @@ A boiler device with child devices "Heating circuit N", "Hot water N" and "Buffe
 Sensors for temperatures, flue gas, oxygen, induced draught, feed, output, pellet level and
 consumption, system and boiler state, fault text, counters (diagnostic); binary sensors for
 fault and boiler demand; numbers for boiler setpoint, pellet stock, heating curve, setback,
-heating limits and hot water settings; selects for the heating circuit mode and (with Connect)
+heating limits and hot water settings ("Heating curve flow at plus 10 °C" and "… at minus 10 °C"); selects for the heating circuit mode and (with Connect)
 the system operating mode; a button to read the parameters again.
 
 ## Data updates

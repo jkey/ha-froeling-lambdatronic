@@ -151,10 +151,10 @@
         "name": "Pelletlager Mindestbestand"
       },
       "curve_flow_plus10": {
-        "name": "Heizkurve Vorlauf bei +10 °C"
+        "name": "Heizkurve Vorlauf bei plus 10 °C"
       },
       "curve_flow_minus10": {
-        "name": "Heizkurve Vorlauf bei −10 °C"
+        "name": "Heizkurve Vorlauf bei minus 10 °C"
       },
       "setback": {
         "name": "Absenkung"

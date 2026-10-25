@@ -151,10 +151,10 @@
         "name": "Pellet store minimum"
       },
       "curve_flow_plus10": {
-        "name": "Heating curve flow at +10 °C"
+        "name": "Heating curve flow at plus 10 °C"
       },
       "curve_flow_minus10": {
-        "name": "Heating curve flow at -10 °C"
+        "name": "Heating curve flow at minus 10 °C"
       },
       "setback": {
         "name": "Setback"
