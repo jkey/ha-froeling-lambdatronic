@@ -15,7 +15,9 @@ Modbus-Bibliothek.
 ## Unterstützte Geräte
 
 - Fröling-Kessel mit Lambdatronic 3200 und Modbus-Schnittstelle an COM2 (Doku Fröling
-  B1200522, „Kommunikationsprotokoll ModBus Lambdatronic 3200“). Getestet: PE1 Pellet.
+  B1200522, „Kommunikationsprotokoll ModBus Lambdatronic 3200“). Getestet ist bisher nur ein
+  PE1 Pellet; andere Kessel mit Lambdatronic 3200 sollten funktionieren, sind aber unerprobt.
+  Rückmeldungen dazu gern als Issue. Pelletlager-Werte ergeben nur bei Pelletkesseln Sinn.
 - Ein RS232-zu-Ethernet-Gateway im Modus „Modbus TCP Gateway“, z. B. Waveshare
   RS232/485-TO-ETH.
 - Bis zu 18 Heizkreise, 8 Warmwasserspeicher und 4 Pufferspeicher; erkannt wird, was belegt ist.
@@ -191,6 +193,8 @@ mode via **Fröling Connect**.
 Lambdatronic 3200 boilers with Modbus on COM2 (Fröling document B1200522) behind an
 RS232-to-Ethernet gateway in "Modbus TCP gateway" mode (e.g. Waveshare RS232/485-TO-ETH).
 Up to 18 heating circuits, 8 hot water tanks and 4 buffers; installed components are detected.
+Tested so far only with a PE1 pellet boiler; other Lambdatronic 3200 boilers should work but are
+untested (reports welcome as issues). Pellet storage values only make sense for pellet boilers.
 
 ## Boiler prerequisites
 
