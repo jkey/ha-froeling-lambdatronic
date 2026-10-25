@@ -335,10 +335,10 @@
       "fault": {
         "name": "Störung",
         "state_attributes": {
-          "fehlercode": {
+          "error_code": {
             "name": "Fehlercode"
           },
-          "weitere": {
+          "more_errors": {
             "name": "Weitere Störungen"
           }
         }
@@ -367,7 +367,7 @@
       "curve_flow": {
         "name": "Vorlauf laut Heizkurve",
         "state_attributes": {
-          "kurve": {
+          "curve": {
             "name": "Kurve"
           }
         }

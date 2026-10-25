@@ -17,6 +17,8 @@ from pytest_homeassistant_custom_component.common import (
 )
 from syrupy.assertion import SnapshotAssertion
 
+from custom_components.froeling_lambdatronic.sensor import FroelingCurveSensor
+
 from . import setup_integration
 from .const import PARAMETERS, VALUES
 
@@ -65,8 +67,8 @@ async def test_fault_sensor(
     state = hass.states.get("sensor.froling_pe1_fault_text")
     assert state is not None
     assert state.state != "Keine Störung"
-    assert state.attributes["fehlercode"] == 4
-    assert len(state.attributes["weitere"]) == 1
+    assert state.attributes["error_code"] == 4
+    assert len(state.attributes["more_errors"]) == 1
 
 
 async def test_unknown_states(
@@ -98,6 +100,8 @@ async def test_curve_sensor_follows_parameters(
     state = hass.states.get(entity_id)
     assert state is not None
     assert state.state == "46.4"
+    assert state.attributes["curve"][6] == {"outside": 10, "flow": 46.0}
+    assert "curve" in FroelingCurveSensor._unrecorded_attributes
 
     hc1 = replace(PARAMETERS.heating_circuits[1], curve_flow_plus10=50.0)
     mock_client.read_parameters.return_value = replace(

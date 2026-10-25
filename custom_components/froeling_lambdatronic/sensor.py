@@ -274,8 +274,8 @@ class FroelingFaultSensor(FroelingEntity[ValuesCoordinator], SensorEntity):
         """Error code of the first entry and texts of further entries."""
         errors = self.coordinator.data.errors
         return {
-            "fehlercode": errors[0] if errors else None,
-            "weitere": [error_text(code) for code in errors[1:]],
+            "error_code": errors[0] if errors else None,
+            "more_errors": [error_text(code) for code in errors[1:]],
         }
 
 
@@ -283,6 +283,8 @@ class FroelingCurveSensor(FroelingEntity[ValuesCoordinator], SensorEntity):
     """Flow temperature of the heating curve at the current outside temperature."""
 
     entity_description = CURVE_FLOW
+    # The curve only changes with the parameters; recording it with every state wastes space.
+    _unrecorded_attributes = frozenset({"curve"})
 
     def __init__(
         self, coordinator: ValuesCoordinator, parameters: ParametersCoordinator, component: Component
@@ -316,4 +318,4 @@ class FroelingCurveSensor(FroelingEntity[ValuesCoordinator], SensorEntity):
     def extra_state_attributes(self) -> dict[str, Any]:
         """Points of the heating curve from -20 to +20 °C."""
         curve = self._parameters.data.heating_circuits[self.component.number].curve()
-        return {"kurve": [{"aussen": outside, "vorlauf": flow} for outside, flow in curve]}
+        return {"curve": [{"outside": outside, "flow": flow} for outside, flow in curve]}

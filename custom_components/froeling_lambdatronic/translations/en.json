@@ -335,11 +335,11 @@
       "fault": {
         "name": "Fault text",
         "state_attributes": {
-          "fehlercode": {
+          "error_code": {
             "name": "Error code"
           },
-          "weitere": {
-            "name": "Further errors"
+          "more_errors": {
+            "name": "More errors"
           }
         }
       },
@@ -367,7 +367,7 @@
       "curve_flow": {
         "name": "Flow by heating curve",
         "state_attributes": {
-          "kurve": {
+          "curve": {
             "name": "Curve"
           }
         }
