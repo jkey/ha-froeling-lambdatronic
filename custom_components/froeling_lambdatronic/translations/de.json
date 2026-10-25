@@ -416,6 +416,9 @@
     },
     "cloud_write_failed": {
       "message": "Umschalten über Fröling Connect fehlgeschlagen: {error}"
+    },
+    "parameters_read_failed": {
+      "message": "Lesen der Parameter fehlgeschlagen: {error}"
     }
   },
   "issues": {
