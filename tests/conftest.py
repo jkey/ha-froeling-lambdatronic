@@ -76,6 +76,7 @@ def mock_client() -> Generator[MagicMock]:
     client.write = AsyncMock(side_effect=lambda register, value: value)
     with (
         patch("custom_components.froeling_lambdatronic.LambdatronicClient", return_value=client),
+        patch("custom_components.froeling_lambdatronic.config_flow.LambdatronicClient", return_value=client),
     ):
         yield client
 
@@ -90,5 +91,8 @@ def mock_cloud() -> Generator[MagicMock]:
     cloud.set_operating_mode = AsyncMock()
     with (
         patch("custom_components.froeling_lambdatronic.FroelingConnectClient", return_value=cloud),
+        patch(
+            "custom_components.froeling_lambdatronic.config_flow.FroelingConnectClient", return_value=cloud
+        ),
     ):
         yield cloud

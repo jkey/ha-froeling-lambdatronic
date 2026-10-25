@@ -4,8 +4,8 @@ from datetime import timedelta
 from unittest.mock import MagicMock
 
 import pytest
-from froeling_lambdatronic import ConnectionFailedError, NoResponseError
-from homeassistant.config_entries import ConfigEntryState
+from froeling_lambdatronic import AuthenticationError, ConnectionFailedError, NoResponseError
+from homeassistant.config_entries import SOURCE_REAUTH, ConfigEntryState
 from homeassistant.const import STATE_UNAVAILABLE
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import device_registry as dr
@@ -184,3 +184,16 @@ async def test_remove_config_entry_device(
         await client.send_json_auto_id({"type": "config/device_registry/remove", "device_id": device_id})
         response = await client.receive_json()
         assert response["success"] is removable
+
+
+async def test_cloud_auth_failure_starts_reauth(
+    hass: HomeAssistant, mock_client: MagicMock, mock_cloud: MagicMock, mock_config_entry: MockConfigEntry
+) -> None:
+    """A rejected Connect login keeps the entry loaded and starts the reauth flow."""
+    mock_cloud.get_boiler_state.side_effect = AuthenticationError("rejected")
+
+    await setup_integration(hass, mock_config_entry)
+
+    assert mock_config_entry.state is ConfigEntryState.LOADED
+    flows = hass.config_entries.flow.async_progress_by_handler(DOMAIN)
+    assert [flow["context"]["source"] for flow in flows] == [SOURCE_REAUTH]
