@@ -45,8 +45,10 @@ class FroelingRefreshButton(FroelingEntity[ValuesCoordinator], ButtonEntity):
         """Refresh the parameters now."""
         await self._parameters.async_refresh()
         if not self._parameters.last_update_success:
+            error = self._parameters.last_exception
             raise HomeAssistantError(
                 translation_domain=DOMAIN,
                 translation_key="parameters_read_failed",
-                translation_placeholders={"error": str(self._parameters.last_exception)},
+                # The cause is the library error; the UpdateFailed itself carries an English text.
+                translation_placeholders={"error": str(error and (error.__cause__ or error))},
             )

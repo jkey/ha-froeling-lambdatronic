@@ -67,7 +67,7 @@ async def test_press_fails_and_stays_available(
             blocking=True,
         )
     assert raised.value.translation_key == "parameters_read_failed"
-    assert "timeout" in str(raised.value)
+    assert raised.value.translation_placeholders == {"error": "timeout"}
     await hass.async_block_till_done()
     state = hass.states.get("button.froling_pe1_read_parameters")
     assert state is not None
