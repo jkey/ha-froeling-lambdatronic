@@ -5,6 +5,8 @@ from homeassistant.const import CONF_HOST, CONF_PASSWORD, CONF_PORT, CONF_USERNA
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.exceptions import ConfigEntryNotReady
 from homeassistant.helpers import device_registry as dr
+from homeassistant.helpers import entity_registry as er
+from homeassistant.helpers import issue_registry as ir
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
 from .const import (
@@ -16,6 +18,8 @@ from .const import (
     CONF_HOT_WATER,
     CONF_SLAVE,
     DOMAIN,
+    ISSUE_PROTOCOL_DISABLED,
+    ISSUE_REMOTE_CONTROL_DISABLED,
     MANUFACTURER,
     MODEL,
 )
@@ -48,6 +52,8 @@ def selected_equipment(entry: FroelingConfigEntry) -> Equipment:
 
 async def async_setup_entry(hass: HomeAssistant, entry: FroelingConfigEntry) -> bool:
     """Set up Fröling Lambdatronic from a config entry."""
+    if entry.data.get(CONF_CLOUD) is None:
+        _async_remove_cloud_leftovers(hass, entry)
     client = LambdatronicClient(entry.data[CONF_HOST], entry.data[CONF_PORT], entry.data[CONF_SLAVE])
     try:
         await client.connect()
@@ -100,6 +106,23 @@ async def async_unload_entry(hass: HomeAssistant, entry: FroelingConfigEntry) ->
     if unload_ok := await hass.config_entries.async_unload_platforms(entry, PLATFORMS):
         await entry.runtime_data.client.close()
     return unload_ok
+
+
+async def async_remove_entry(hass: HomeAssistant, entry: FroelingConfigEntry) -> None:
+    """Delete the repair issues of a removed entry."""
+    for issue in (ISSUE_REMOTE_CONTROL_DISABLED, ISSUE_PROTOCOL_DISABLED):
+        ir.async_delete_issue(hass, DOMAIN, f"{issue}_{entry.entry_id}")
+
+
+@callback
+def _async_remove_cloud_leftovers(hass: HomeAssistant, entry: FroelingConfigEntry) -> None:
+    """Remove the repair issue and the system mode select of a removed Fröling Connect login."""
+    ir.async_delete_issue(hass, DOMAIN, f"{ISSUE_REMOTE_CONTROL_DISABLED}_{entry.entry_id}")
+    registry = er.async_get(hass)
+    if entity_id := registry.async_get_entity_id(
+        Platform.SELECT, DOMAIN, f"{entry.entry_id}_system_operating_mode"
+    ):
+        registry.async_remove(entity_id)
 
 
 async def async_remove_config_entry_device(

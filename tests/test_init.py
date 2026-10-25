@@ -9,6 +9,8 @@ from homeassistant.config_entries import SOURCE_REAUTH, ConfigEntryState
 from homeassistant.const import STATE_UNAVAILABLE
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import device_registry as dr
+from homeassistant.helpers import entity_registry as er
+from homeassistant.helpers import issue_registry as ir
 from homeassistant.setup import async_setup_component
 from homeassistant.util import dt as dt_util
 from pytest_homeassistant_custom_component.common import MockConfigEntry, async_fire_time_changed
@@ -197,3 +199,59 @@ async def test_cloud_auth_failure_starts_reauth(
     assert mock_config_entry.state is ConfigEntryState.LOADED
     flows = hass.config_entries.flow.async_progress_by_handler(DOMAIN)
     assert [flow["context"]["source"] for flow in flows] == [SOURCE_REAUTH]
+
+
+async def test_without_cloud_removes_cloud_leftovers(
+    hass: HomeAssistant,
+    mock_client: MagicMock,
+    mock_config_entry_local: MockConfigEntry,
+    entity_registry: er.EntityRegistry,
+    issue_registry: ir.IssueRegistry,
+) -> None:
+    """After Connect was removed, its repair issue and the system mode select disappear."""
+    mock_config_entry_local.add_to_hass(hass)
+    entry_id = mock_config_entry_local.entry_id
+    select = entity_registry.async_get_or_create(
+        "select", DOMAIN, f"{entry_id}_system_operating_mode", config_entry=mock_config_entry_local
+    )
+    ir.async_create_issue(
+        hass,
+        DOMAIN,
+        f"remote_control_disabled_{entry_id}",
+        is_fixable=False,
+        severity=ir.IssueSeverity.WARNING,
+        translation_key="remote_control_disabled",
+    )
+
+    await setup_integration(hass, mock_config_entry_local)
+
+    assert mock_config_entry_local.state is ConfigEntryState.LOADED
+    assert entity_registry.async_get(select.entity_id) is None
+    assert issue_registry.async_get_issue(DOMAIN, f"remote_control_disabled_{entry_id}") is None
+
+
+async def test_remove_entry_deletes_issues(
+    hass: HomeAssistant,
+    mock_client: MagicMock,
+    mock_cloud: MagicMock,
+    mock_config_entry: MockConfigEntry,
+    issue_registry: ir.IssueRegistry,
+) -> None:
+    """Removing the entry deletes its repair issues."""
+    await setup_integration(hass, mock_config_entry)
+    entry_id = mock_config_entry.entry_id
+    for issue in ("remote_control_disabled", "protocol_2014_disabled"):
+        ir.async_create_issue(
+            hass,
+            DOMAIN,
+            f"{issue}_{entry_id}",
+            is_fixable=False,
+            severity=ir.IssueSeverity.WARNING,
+            translation_key=issue,
+        )
+
+    await hass.config_entries.async_remove(entry_id)
+    await hass.async_block_till_done()
+
+    for issue in ("remote_control_disabled", "protocol_2014_disabled"):
+        assert issue_registry.async_get_issue(DOMAIN, f"{issue}_{entry_id}") is None
