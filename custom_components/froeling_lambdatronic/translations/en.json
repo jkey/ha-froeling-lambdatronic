@@ -85,8 +85,7 @@
       "unknown": "Unexpected error.",
       "invalid_auth": "Fröling Connect rejected the login.",
       "cloud_cannot_connect": "Cannot reach Fröling Connect.",
-      "no_facilities": "No facility found in this Fröling Connect account.",
-      "remote_control_disabled": "Remote control via Fröling Connect is disabled for this facility. Enable it at the boiler or in the Connect app, or leave the username empty."
+      "no_facilities": "No facility found in this Fröling Connect account."
     },
     "abort": {
       "already_configured": "This boiler is already configured.",

@@ -17,6 +17,7 @@ from homeassistant.config_entries import SOURCE_USER, ConfigEntryState
 from homeassistant.const import CONF_HOST, CONF_NAME, CONF_PASSWORD, CONF_PORT, CONF_USERNAME
 from homeassistant.core import HomeAssistant
 from homeassistant.data_entry_flow import FlowResultType
+from homeassistant.helpers import issue_registry as ir
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.froeling_lambdatronic.const import (
@@ -98,15 +99,39 @@ async def test_user_flow_multiple_facilities(hass: HomeAssistant, mock_cloud: Ma
     assert result["type"] is FlowResultType.FORM
     assert result["step_id"] == "facility"
 
-    mock_cloud.get_boiler_state.return_value = CloudBoilerState(OperatingMode.AUTOMATIC, False)
-    result = await hass.config_entries.flow.async_configure(flow_id, {CONF_FACILITY_ID: str(FACILITY_ID)})
-    assert result["type"] is FlowResultType.FORM
-    assert result["errors"] == {"base": "remote_control_disabled"}
+    for error, expected in (
+        (ConnectionFailedError("down"), "cloud_cannot_connect"),
+        (RuntimeError("boom"), "unknown"),
+    ):
+        mock_cloud.get_boiler_state.side_effect = error
+        result = await hass.config_entries.flow.async_configure(flow_id, {CONF_FACILITY_ID: str(FACILITY_ID)})
+        assert result["type"] is FlowResultType.FORM
+        assert result["errors"] == {"base": expected}
 
-    mock_cloud.get_boiler_state.return_value = CloudBoilerState(OperatingMode.AUTOMATIC, True)
+    mock_cloud.get_boiler_state.side_effect = None
     result = await hass.config_entries.flow.async_configure(flow_id, {CONF_FACILITY_ID: str(FACILITY_ID)})
     assert result["type"] is FlowResultType.CREATE_ENTRY
     assert result["data"][CONF_CLOUD][CONF_FACILITY_ID] == FACILITY_ID
+
+
+@pytest.mark.usefixtures("mock_client")
+async def test_user_flow_remote_control_disabled(
+    hass: HomeAssistant, mock_cloud: MagicMock, issue_registry: ir.IssueRegistry
+) -> None:
+    """Remote control switched off does not block the setup; a repair issue tells the user."""
+    mock_cloud.get_boiler_state.return_value = CloudBoilerState(OperatingMode.AUTOMATIC, False)
+    flow_id = await _to_cloud_step(hass)
+
+    result = await hass.config_entries.flow.async_configure(
+        flow_id, {CONF_USERNAME: USERNAME, CONF_PASSWORD: PASSWORD}
+    )
+    assert result["type"] is FlowResultType.CREATE_ENTRY
+    assert result["data"] == entry_data()
+    await hass.async_block_till_done()
+
+    entry = result["result"]
+    assert entry.state is ConfigEntryState.LOADED
+    assert issue_registry.async_get_issue(DOMAIN, f"remote_control_disabled_{entry.entry_id}") is not None
 
 
 @pytest.mark.parametrize(
@@ -141,7 +166,8 @@ async def test_user_flow_errors(
         ("login", AuthenticationError("rejected"), "invalid_auth"),
         ("get_facilities", ConnectionFailedError("down"), "cloud_cannot_connect"),
         ("get_facilities", [[]], "no_facilities"),
-        ("get_boiler_state", [CloudBoilerState(OperatingMode.AUTOMATIC, False)], "remote_control_disabled"),
+        ("login", RuntimeError("boom"), "unknown"),
+        ("get_boiler_state", RuntimeError("boom"), "unknown"),
     ],
 )
 @pytest.mark.usefixtures("mock_client")

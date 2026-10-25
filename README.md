@@ -60,7 +60,9 @@ Für die Anlagen-Betriebsart über Fröling Connect muss am Kessel bzw. in der C
 | Anlage | Anlage | Nur wenn das Connect-Konto mehrere Anlagen hat |
 
 Vor dem Anlegen liest die Integration den Anlagenzustand (Register 34001) und erkennt die
-Ausstattung. Mit Connect werden Anmeldung und „Fernschalten“ geprüft.
+Ausstattung. Mit Connect wird die Anmeldung geprüft. Ist „Fernschalten“ ausgeschaltet, wird
+die Integration trotzdem eingerichtet: Die Anlagen-Betriebsart ist dann nicht verfügbar, und
+eine Reparaturmeldung erklärt, wo es eingeschaltet wird.
 
 ### Optionen
 
@@ -209,6 +211,8 @@ equipment, then optional Fröling Connect credentials (leave empty to skip) and,
 with several facilities, the facility. Options: enabled components, value interval (10–300 s,
 default 30 s), parameter interval (1–60 min, default 5 min). Reconfigure changes host, port,
 slave ID and the Connect login (empty username removes Connect, empty password keeps it).
+If "Fernschalten über connect möglich" is disabled, setup and reconfigure still succeed: the
+system operating mode select is unavailable and a repair issue explains how to enable it.
 
 ## Entities
 

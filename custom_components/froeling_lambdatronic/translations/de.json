@@ -85,8 +85,7 @@
       "unknown": "Unerwarteter Fehler.",
       "invalid_auth": "Fröling Connect hat die Anmeldung abgelehnt.",
       "cloud_cannot_connect": "Fröling Connect ist nicht erreichbar.",
-      "no_facilities": "In diesem Fröling-Connect-Konto wurde keine Anlage gefunden.",
-      "remote_control_disabled": "Fernschalten über Fröling Connect ist für diese Anlage ausgeschaltet. Am Kessel oder in der Connect-App einschalten oder den Benutzernamen leer lassen."
+      "no_facilities": "In diesem Fröling-Connect-Konto wurde keine Anlage gefunden."
     },
     "abort": {
       "already_configured": "Dieser Kessel ist bereits eingerichtet.",

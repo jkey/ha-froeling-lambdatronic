@@ -161,7 +161,8 @@ async def _async_check_cloud(
     """Log in to Fröling Connect.
 
     Returns an error key or the facilities still to choose from. A single facility
-    in the result is the chosen one; its remote control permission was checked.
+    in the result is the chosen one; its state could be read. Remote control being
+    disabled does not block the flow: the cloud coordinator raises a repair issue.
     """
     client = FroelingConnectClient(async_get_clientsession(hass), username, password)
     try:
@@ -173,13 +174,14 @@ async def _async_check_cloud(
             return "no_facilities", []
         if len(facilities) > 1:
             return None, facilities
-        state = await client.get_boiler_state(facilities[0].facility_id)
+        await client.get_boiler_state(facilities[0].facility_id)
     except AuthenticationError:
         return "invalid_auth", []
     except FroelingError:
         return "cloud_cannot_connect", []
-    if not state.remote_control_allowed:
-        return "remote_control_disabled", facilities
+    except Exception:
+        _LOGGER.exception("Unexpected error while logging in to Fröling Connect")
+        return "unknown", []
     return None, facilities
 
 
