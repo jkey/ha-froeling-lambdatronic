@@ -1,0 +1,431 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Modbus-TCP-Gateway",
+        "description": "Der Kessel (Lambdatronic 3200, COM2) hängt an einem Modbus-TCP-Gateway. Am Kessel muss „MODBUS-Protokoll 2014“ eingeschaltet sein.",
+        "data": {
+          "host": "Host",
+          "port": "Port",
+          "slave": "Slave-ID",
+          "name": "Name"
+        },
+        "data_description": {
+          "host": "IP-Adresse oder Hostname des Modbus-TCP-Gateways.",
+          "port": "TCP-Port des Gateways, meist 502.",
+          "slave": "Am Kessel eingestellte Modbus-Adresse (Servicemenü, meist 2).",
+          "name": "Name des Kessel-Geräts in Home Assistant."
+        }
+      },
+      "equipment": {
+        "title": "Ausstattung",
+        "description": "Diese Komponenten wurden erkannt. Komponenten ohne Fühler liefern 0 und fehlen hier.",
+        "data": {
+          "heating_circuits": "Heizkreise",
+          "hot_water": "Warmwasserspeicher",
+          "buffers": "Pufferspeicher"
+        },
+        "data_description": {
+          "heating_circuits": "Erkannte Nummern; abwählen, was nicht in Home Assistant erscheinen soll.",
+          "hot_water": "Erkannte Nummern; abwählen, was nicht in Home Assistant erscheinen soll.",
+          "buffers": "Erkannte Nummern; abwählen, was nicht in Home Assistant erscheinen soll."
+        }
+      },
+      "cloud": {
+        "title": "Fröling Connect",
+        "description": "Optional: Die Anlagen-Betriebsart (Automatik, Brauchwasser, Dauerlast) lässt sich nur über Fröling Connect umschalten.",
+        "data": {
+          "username": "Fröling-Connect-Benutzername",
+          "password": "Passwort"
+        },
+        "data_description": {
+          "username": "Leer lassen, um die Integration ohne Fröling Connect zu nutzen.",
+          "password": "Beim Ändern anderer Einstellungen leer lassen, um das gespeicherte Passwort zu behalten."
+        }
+      },
+      "facility": {
+        "title": "Anlage",
+        "data": {
+          "facility_id": "Anlage"
+        },
+        "data_description": {
+          "facility_id": "Anlage im Fröling-Connect-Konto, die zu diesem Kessel gehört."
+        }
+      },
+      "reconfigure": {
+        "title": "Modbus-TCP-Gateway",
+        "data": {
+          "host": "Host",
+          "port": "Port",
+          "slave": "Slave-ID"
+        },
+        "data_description": {
+          "host": "IP-Adresse oder Hostname des Modbus-TCP-Gateways.",
+          "port": "TCP-Port des Gateways, meist 502.",
+          "slave": "Am Kessel eingestellte Modbus-Adresse (Servicemenü, meist 2)."
+        }
+      },
+      "reauth_confirm": {
+        "title": "Fröling-Connect-Anmeldung",
+        "description": "Fröling Connect hat die gespeicherte Anmeldung abgelehnt. Aktuelle Zugangsdaten eingeben.",
+        "data": {
+          "username": "Fröling-Connect-Benutzername",
+          "password": "Passwort"
+        },
+        "data_description": {
+          "username": "E-Mail-Adresse des Fröling-Connect-Kontos.",
+          "password": "Passwort des Fröling-Connect-Kontos."
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Keine Verbindung zum Gateway.",
+      "no_response": "Das Gateway ist erreichbar, aber der Kessel antwortet nicht. Slave-ID, Verkabelung und Modbus-Einstellungen am Kessel prüfen.",
+      "invalid_slave": "Der Kessel antwortet unerwartet. Slave-ID prüfen.",
+      "unknown": "Unerwarteter Fehler.",
+      "invalid_auth": "Fröling Connect hat die Anmeldung abgelehnt.",
+      "cloud_cannot_connect": "Fröling Connect ist nicht erreichbar.",
+      "no_facilities": "In diesem Fröling-Connect-Konto wurde keine Anlage gefunden.",
+      "remote_control_disabled": "Fernschalten über Fröling Connect ist für diese Anlage ausgeschaltet. Am Kessel oder in der Connect-App einschalten oder den Benutzernamen leer lassen."
+    },
+    "abort": {
+      "already_configured": "Dieser Kessel ist bereits eingerichtet.",
+      "reauth_successful": "Die erneute Anmeldung war erfolgreich.",
+      "reconfigure_successful": "Die Neukonfiguration war erfolgreich."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Optionen",
+        "data": {
+          "heating_circuits": "Heizkreise",
+          "hot_water": "Warmwasserspeicher",
+          "buffers": "Pufferspeicher",
+          "scan_interval": "Werte-Takt",
+          "parameter_interval": "Parameter-Takt"
+        },
+        "data_description": {
+          "heating_circuits": "Erkannte Nummern; abwählen, was nicht in Home Assistant erscheinen soll.",
+          "hot_water": "Erkannte Nummern; abwählen, was nicht in Home Assistant erscheinen soll.",
+          "buffers": "Erkannte Nummern; abwählen, was nicht in Home Assistant erscheinen soll.",
+          "scan_interval": "Wie oft die aktuellen Werte gelesen werden (10–300 s).",
+          "parameter_interval": "Wie oft die Einstellungen gelesen werden (1–60 min). Nach jeder Änderung zusätzlich sofort."
+        }
+      }
+    }
+  },
+  "device": {
+    "heating_circuit": {
+      "name": "Heizkreis {number}"
+    },
+    "hot_water": {
+      "name": "Warmwasser {number}"
+    },
+    "buffer": {
+      "name": "Puffer {number}"
+    }
+  },
+  "entity": {
+    "binary_sensor": {
+      "fault_active": {
+        "name": "Störung aktiv"
+      },
+      "boiler_demand": {
+        "name": "Kesselanforderung"
+      }
+    },
+    "button": {
+      "refresh_parameters": {
+        "name": "Parameter neu lesen"
+      }
+    },
+    "number": {
+      "boiler_setpoint": {
+        "name": "Kessel-Solltemperatur"
+      },
+      "pellet_stock": {
+        "name": "Pelletlager Restbestand"
+      },
+      "pellet_stock_minimum": {
+        "name": "Pelletlager Mindestbestand"
+      },
+      "curve_flow_plus10": {
+        "name": "Heizkurve Vorlauf bei +10 °C"
+      },
+      "curve_flow_minus10": {
+        "name": "Heizkurve Vorlauf bei −10 °C"
+      },
+      "setback": {
+        "name": "Absenkung"
+      },
+      "heating_limit": {
+        "name": "Heizgrenze Heizbetrieb"
+      },
+      "heating_limit_setback": {
+        "name": "Heizgrenze Absenkbetrieb"
+      },
+      "setpoint": {
+        "name": "Solltemperatur"
+      },
+      "recharge_below": {
+        "name": "Nachladen unter"
+      }
+    },
+    "select": {
+      "heating_circuit_mode": {
+        "name": "Betriebsart",
+        "state": {
+          "off": "Aus",
+          "automatic": "Automatik",
+          "extra_heating": "Extraheizen",
+          "setback": "Absenken",
+          "permanent_setback": "Dauerabsenken",
+          "party": "Partybetrieb"
+        }
+      },
+      "system_operating_mode": {
+        "name": "Anlagen-Betriebsart",
+        "state": {
+          "continuous_load": "Dauerlast",
+          "domestic_hot_water": "Brauchwasser",
+          "automatic": "Automatik"
+        }
+      }
+    },
+    "sensor": {
+      "boiler_temperature": {
+        "name": "Kesseltemperatur"
+      },
+      "boiler_setpoint_calculated": {
+        "name": "Kessel-Soll errechnet"
+      },
+      "flue_gas_temperature": {
+        "name": "Abgastemperatur"
+      },
+      "return_temperature": {
+        "name": "Rücklauftemperatur"
+      },
+      "outside_temperature": {
+        "name": "Außentemperatur"
+      },
+      "residual_oxygen": {
+        "name": "Restsauerstoff"
+      },
+      "induced_draft_speed": {
+        "name": "Saugzugdrehzahl"
+      },
+      "feed_rate": {
+        "name": "Einschub"
+      },
+      "boiler_output": {
+        "name": "Kesselleistung"
+      },
+      "pellet_hopper_level": {
+        "name": "Füllstand Pelletbehälter"
+      },
+      "pellet_consumption_total": {
+        "name": "Pelletverbrauch gesamt"
+      },
+      "pellet_counter_kg": {
+        "name": "Pellet-kg-Zähler"
+      },
+      "system_state": {
+        "name": "Anlagenzustand",
+        "state": {
+          "continuous_load": "Dauerlast",
+          "domestic_hot_water": "Brauchwasser",
+          "automatic": "Automatik",
+          "firewood": "Scheitholzbetrieb",
+          "cleaning": "Reinigen",
+          "off": "Ausgeschaltet",
+          "extra_heating": "Extraheizen",
+          "chimney_sweep": "Kaminkehrer",
+          "cleaning_2": "Reinigen (2)"
+        }
+      },
+      "boiler_state": {
+        "name": "Kesselzustand",
+        "state": {
+          "fault": "STÖRUNG",
+          "boiler_off": "Kessel Aus",
+          "heating_up": "Anheizen",
+          "heating": "Heizen",
+          "fire_maintenance": "Feuererhaltung",
+          "fire_out": "Feuer Aus",
+          "door_open": "Tür offen",
+          "preparation": "Vorbereitung",
+          "warming_up": "Vorwärmen",
+          "ignition": "Zünden",
+          "shutdown_wait": "Abstellen Warten",
+          "shutdown_wait_1": "Abstellen Warten1",
+          "shutdown_feed_1": "Abstellen Einschub1",
+          "shutdown_wait_2": "Abstellen Warten2",
+          "shutdown_feed_2": "Abstellen Einschub2",
+          "cleaning": "Abreinigen",
+          "wait_2h": "2h warten",
+          "suction_heating": "Saugen/Heizen",
+          "ignition_failure": "Fehlzündung",
+          "ready": "Betriebsbereit",
+          "grate_closing": "Rost schließen",
+          "stoker_emptying": "Stoker leeren",
+          "preheating": "Vorheizen",
+          "suction": "Saugen",
+          "rse_closing": "RSE schließen",
+          "rse_opening": "RSE öffnen",
+          "grate_tilting": "Rost kippen",
+          "warming_up_ignition": "Vorwärmen-Zünden",
+          "residual_feed": "Resteinschub",
+          "stoker_filling": "Stoker auffüllen",
+          "lambda_probe_heating": "Lambdasonde aufheizen",
+          "fan_overrun_1": "Gebläsenachlauf I",
+          "fan_overrun_2": "Gebläsenachlauf II",
+          "stopped": "Abgestellt",
+          "reignition": "Nachzünden",
+          "ignition_wait": "Zünden Warten",
+          "recovery_rse_closing": "FB: RSE schließen",
+          "recovery_boiler_venting": "FB: Kessel belüften",
+          "recovery_ignition": "FB: Zünden",
+          "recovery_min_feed": "FB: min. Einschub",
+          "rse_closing_2": "RSE schließen (2)",
+          "fault_stb_na": "STÖRUNG: STB/NA",
+          "fault_tilting_grate": "STÖRUNG: Kipprost",
+          "fault_overpressure": "STÖRUNG: FR-Überdr.",
+          "fault_door_contact": "STÖRUNG: Türkont.",
+          "fault_induced_draft": "STÖRUNG: Saugzug",
+          "fault_environment": "STÖRUNG: Umfeld",
+          "error_stb_na": "FEHLER: STB/NA",
+          "error_tilting_grate": "FEHLER: Kipprost",
+          "error_overpressure": "FEHLER: FR-Überdr.",
+          "error_door_contact": "FEHLER: Türkont.",
+          "error_induced_draft": "FEHLER: Saugzug",
+          "error_environment": "FEHLER: Umfeld",
+          "error_stoker": "FEHLER: Stoker",
+          "fault_stoker": "STÖRUNG: Stoker",
+          "recovery_stoker_emptying": "FB: Stoker leeren",
+          "pre_ventilation": "Vorbelüften",
+          "fault_wood_chips": "STÖRUNG: Hackgut",
+          "error_wood_chips": "FEHLER: Hackgut",
+          "nb_door_open": "NB: Tür offen",
+          "nb_heating_up": "NB: Anheizen",
+          "nb_heating": "NB: Heizen",
+          "error_stb_na_2": "FEHLER: STB/NA (2)",
+          "error_general": "FEHLER: Allgemein",
+          "nb_fire_out": "NB: Feuer Aus",
+          "self_test": "Selbsttest aktiv",
+          "error_handling_20min": "Fehlerbeh. 20min",
+          "error_drop_shaft": "FEHLER: Fallschacht",
+          "fault_drop_shaft": "STÖRUNG: Fallschacht",
+          "cleaning_possible": "Reinigen möglich",
+          "heating_cleaning": "Heizen - Reinigen",
+          "firewood_heating_up": "SH Anheizen",
+          "firewood_heating": "SH Heizen",
+          "firewood_heating_shutdown": "SH Heiz/Abstell",
+          "fault_safe": "STÖRUNG sicher",
+          "egr_overrun": "AGR Nachlauf",
+          "egr_cleaning": "AGR reinigen",
+          "ignition_off": "Zündung AUS",
+          "filter_cleaning": "Filter reinigen",
+          "heating_up_assistant": "Anheizassistent",
+          "firewood_ignition": "SH Zünden",
+          "firewood_fault": "SH Störung",
+          "sensor_check": "Sensorcheck"
+        }
+      },
+      "fault": {
+        "name": "Störung",
+        "state_attributes": {
+          "fehlercode": {
+            "name": "Fehlercode"
+          },
+          "weitere": {
+            "name": "Weitere Störungen"
+          }
+        }
+      },
+      "operating_hours": {
+        "name": "Betriebsstunden"
+      },
+      "heating_hours": {
+        "name": "Stunden im Heizen"
+      },
+      "burner_starts": {
+        "name": "Brennerstarts"
+      },
+      "hours_until_ash_emptying": {
+        "name": "Heizstunden bis Asche entleeren"
+      },
+      "flow_temperature": {
+        "name": "Vorlauf Ist"
+      },
+      "flow_setpoint": {
+        "name": "Vorlauf Soll"
+      },
+      "room_temperature": {
+        "name": "Raumtemperatur"
+      },
+      "curve_flow": {
+        "name": "Vorlauf laut Heizkurve",
+        "state_attributes": {
+          "kurve": {
+            "name": "Kurve"
+          }
+        }
+      },
+      "temperature": {
+        "name": "Temperatur"
+      },
+      "pump": {
+        "name": "Pumpe"
+      },
+      "top": {
+        "name": "Temperatur oben"
+      },
+      "bottom": {
+        "name": "Temperatur unten"
+      }
+    }
+  },
+  "exceptions": {
+    "cannot_connect": {
+      "message": "Keine Verbindung zum Kessel unter {host}: {error}"
+    },
+    "update_failed": {
+      "message": "Lesen am Kessel fehlgeschlagen: {error}"
+    },
+    "cloud_update_failed": {
+      "message": "Abruf von Fröling Connect fehlgeschlagen: {error}"
+    },
+    "cloud_auth_failed": {
+      "message": "Fröling Connect hat die Anmeldung abgelehnt."
+    },
+    "value_out_of_range": {
+      "message": "{value} liegt außerhalb des erlaubten Bereichs {minimum} bis {maximum}."
+    },
+    "protocol_disabled": {
+      "message": "Der Kessel lehnt Schreibzugriffe ab: „MODBUS-Protokoll 2014“ ist ausgeschaltet."
+    },
+    "write_rejected": {
+      "message": "Der Kessel hat den Wert abgelehnt: {reason}"
+    },
+    "communication_failed": {
+      "message": "Kommunikation mit dem Kessel fehlgeschlagen: {error}"
+    },
+    "remote_control_disabled": {
+      "message": "Fernschalten über Fröling Connect ist ausgeschaltet."
+    },
+    "cloud_write_failed": {
+      "message": "Umschalten über Fröling Connect fehlgeschlagen: {error}"
+    }
+  },
+  "issues": {
+    "protocol_2014_disabled": {
+      "title": "{name}: Schreiben per Modbus ausgeschaltet",
+      "description": "Der Kessel beantwortet Schreibzugriffe mit „Illegal Function“. Am Kessel im Servicemenü (Code −7) → MODBUS-Einstellungen „MODBUS-Protokoll 2014 verwenden“ auf JA stellen. Erst danach lassen sich Einstellungen ändern."
+    },
+    "remote_control_disabled": {
+      "title": "{name}: Fernschalten über Fröling Connect ausgeschaltet",
+      "description": "Die Anlagen-Betriebsart lässt sich nicht aus Home Assistant umschalten. Am Kessel (Connect-Einstellungen) oder in der Fröling-Connect-App „Fernschalten über connect möglich“ einschalten. Danach verschwindet diese Meldung von selbst."
+    }
+  }
+}

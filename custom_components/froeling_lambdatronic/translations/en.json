@@ -1,0 +1,431 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Modbus TCP gateway",
+        "description": "The boiler (Lambdatronic 3200, COM2) is connected via a Modbus TCP gateway. 'MODBUS-Protokoll 2014' must be enabled at the boiler.",
+        "data": {
+          "host": "Host",
+          "port": "Port",
+          "slave": "Slave ID",
+          "name": "Name"
+        },
+        "data_description": {
+          "host": "IP address or host name of the Modbus TCP gateway.",
+          "port": "TCP port of the gateway, usually 502.",
+          "slave": "Modbus address set at the boiler (service menu, usually 2).",
+          "name": "Name of the boiler device in Home Assistant."
+        }
+      },
+      "equipment": {
+        "title": "Equipment",
+        "description": "These components were detected. Components without a sensor report 0 and are not listed.",
+        "data": {
+          "heating_circuits": "Heating circuits",
+          "hot_water": "Hot water tanks",
+          "buffers": "Buffer tanks"
+        },
+        "data_description": {
+          "heating_circuits": "Detected numbers; untick components you do not want in Home Assistant.",
+          "hot_water": "Detected numbers; untick components you do not want in Home Assistant.",
+          "buffers": "Detected numbers; untick components you do not want in Home Assistant."
+        }
+      },
+      "cloud": {
+        "title": "Fröling Connect",
+        "description": "Optional: the system operating mode (automatic, domestic hot water, continuous load) can only be switched via Fröling Connect.",
+        "data": {
+          "username": "Fröling Connect username",
+          "password": "Password"
+        },
+        "data_description": {
+          "username": "Leave empty to use the integration without Fröling Connect.",
+          "password": "When changing other settings, leave empty to keep the stored password."
+        }
+      },
+      "facility": {
+        "title": "Facility",
+        "data": {
+          "facility_id": "Facility"
+        },
+        "data_description": {
+          "facility_id": "Facility of the Fröling Connect account that belongs to this boiler."
+        }
+      },
+      "reconfigure": {
+        "title": "Modbus TCP gateway",
+        "data": {
+          "host": "Host",
+          "port": "Port",
+          "slave": "Slave ID"
+        },
+        "data_description": {
+          "host": "IP address or host name of the Modbus TCP gateway.",
+          "port": "TCP port of the gateway, usually 502.",
+          "slave": "Modbus address set at the boiler (service menu, usually 2)."
+        }
+      },
+      "reauth_confirm": {
+        "title": "Fröling Connect login",
+        "description": "Fröling Connect rejected the stored login. Enter the current credentials.",
+        "data": {
+          "username": "Fröling Connect username",
+          "password": "Password"
+        },
+        "data_description": {
+          "username": "Email address of the Fröling Connect account.",
+          "password": "Password of the Fröling Connect account."
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Cannot connect to the gateway.",
+      "no_response": "The gateway is reachable but the boiler does not answer. Check slave ID, cabling and the Modbus settings at the boiler.",
+      "invalid_slave": "The boiler answered unexpectedly. Check the slave ID.",
+      "unknown": "Unexpected error.",
+      "invalid_auth": "Fröling Connect rejected the login.",
+      "cloud_cannot_connect": "Cannot reach Fröling Connect.",
+      "no_facilities": "No facility found in this Fröling Connect account.",
+      "remote_control_disabled": "Remote control via Fröling Connect is disabled for this facility. Enable it at the boiler or in the Connect app, or leave the username empty."
+    },
+    "abort": {
+      "already_configured": "This boiler is already configured.",
+      "reauth_successful": "Re-authentication was successful.",
+      "reconfigure_successful": "Reconfiguration was successful."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Options",
+        "data": {
+          "heating_circuits": "Heating circuits",
+          "hot_water": "Hot water tanks",
+          "buffers": "Buffer tanks",
+          "scan_interval": "Value interval",
+          "parameter_interval": "Parameter interval"
+        },
+        "data_description": {
+          "heating_circuits": "Detected numbers; untick components you do not want in Home Assistant.",
+          "hot_water": "Detected numbers; untick components you do not want in Home Assistant.",
+          "buffers": "Detected numbers; untick components you do not want in Home Assistant.",
+          "scan_interval": "How often the current values are read (10-300 s).",
+          "parameter_interval": "How often the settings are read (1-60 min). They are also read after every change."
+        }
+      }
+    }
+  },
+  "device": {
+    "heating_circuit": {
+      "name": "Heating circuit {number}"
+    },
+    "hot_water": {
+      "name": "Hot water {number}"
+    },
+    "buffer": {
+      "name": "Buffer {number}"
+    }
+  },
+  "entity": {
+    "binary_sensor": {
+      "fault_active": {
+        "name": "Fault"
+      },
+      "boiler_demand": {
+        "name": "Boiler demand"
+      }
+    },
+    "button": {
+      "refresh_parameters": {
+        "name": "Read parameters"
+      }
+    },
+    "number": {
+      "boiler_setpoint": {
+        "name": "Boiler setpoint"
+      },
+      "pellet_stock": {
+        "name": "Pellet store stock"
+      },
+      "pellet_stock_minimum": {
+        "name": "Pellet store minimum"
+      },
+      "curve_flow_plus10": {
+        "name": "Heating curve flow at +10 °C"
+      },
+      "curve_flow_minus10": {
+        "name": "Heating curve flow at -10 °C"
+      },
+      "setback": {
+        "name": "Setback"
+      },
+      "heating_limit": {
+        "name": "Heating limit"
+      },
+      "heating_limit_setback": {
+        "name": "Heating limit setback"
+      },
+      "setpoint": {
+        "name": "Setpoint"
+      },
+      "recharge_below": {
+        "name": "Recharge below"
+      }
+    },
+    "select": {
+      "heating_circuit_mode": {
+        "name": "Operating mode",
+        "state": {
+          "off": "Off",
+          "automatic": "Automatic",
+          "extra_heating": "Extra heating",
+          "setback": "Setback",
+          "permanent_setback": "Permanent setback",
+          "party": "Party"
+        }
+      },
+      "system_operating_mode": {
+        "name": "System operating mode",
+        "state": {
+          "continuous_load": "Continuous load",
+          "domestic_hot_water": "Domestic hot water",
+          "automatic": "Automatic"
+        }
+      }
+    },
+    "sensor": {
+      "boiler_temperature": {
+        "name": "Boiler temperature"
+      },
+      "boiler_setpoint_calculated": {
+        "name": "Boiler setpoint calculated"
+      },
+      "flue_gas_temperature": {
+        "name": "Flue gas temperature"
+      },
+      "return_temperature": {
+        "name": "Return temperature"
+      },
+      "outside_temperature": {
+        "name": "Outside temperature"
+      },
+      "residual_oxygen": {
+        "name": "Residual oxygen"
+      },
+      "induced_draft_speed": {
+        "name": "Induced draught speed"
+      },
+      "feed_rate": {
+        "name": "Feed rate"
+      },
+      "boiler_output": {
+        "name": "Boiler output"
+      },
+      "pellet_hopper_level": {
+        "name": "Pellet hopper level"
+      },
+      "pellet_consumption_total": {
+        "name": "Pellet consumption"
+      },
+      "pellet_counter_kg": {
+        "name": "Pellet counter"
+      },
+      "system_state": {
+        "name": "System state",
+        "state": {
+          "continuous_load": "Continuous load",
+          "domestic_hot_water": "Domestic hot water",
+          "automatic": "Automatic",
+          "firewood": "Firewood",
+          "cleaning": "Cleaning",
+          "off": "Off",
+          "extra_heating": "Extra heating",
+          "chimney_sweep": "Chimney sweep",
+          "cleaning_2": "Cleaning (2)"
+        }
+      },
+      "boiler_state": {
+        "name": "Boiler state",
+        "state": {
+          "fault": "Fault",
+          "boiler_off": "Boiler off",
+          "heating_up": "Heating up",
+          "heating": "Heating",
+          "fire_maintenance": "Fire maintenance",
+          "fire_out": "Fire out",
+          "door_open": "Door open",
+          "preparation": "Preparation",
+          "warming_up": "Warming up",
+          "ignition": "Ignition",
+          "shutdown_wait": "Shutdown: waiting",
+          "shutdown_wait_1": "Shutdown: waiting 1",
+          "shutdown_feed_1": "Shutdown: feed 1",
+          "shutdown_wait_2": "Shutdown: waiting 2",
+          "shutdown_feed_2": "Shutdown: feed 2",
+          "cleaning": "Cleaning",
+          "wait_2h": "Waiting 2 h",
+          "suction_heating": "Suction/heating",
+          "ignition_failure": "Ignition failure",
+          "ready": "Ready",
+          "grate_closing": "Closing grate",
+          "stoker_emptying": "Emptying stoker",
+          "preheating": "Preheating",
+          "suction": "Suction",
+          "rse_closing": "Closing RSE",
+          "rse_opening": "Opening RSE",
+          "grate_tilting": "Tilting grate",
+          "warming_up_ignition": "Warming up/ignition",
+          "residual_feed": "Residual feed",
+          "stoker_filling": "Filling stoker",
+          "lambda_probe_heating": "Heating lambda probe",
+          "fan_overrun_1": "Fan overrun I",
+          "fan_overrun_2": "Fan overrun II",
+          "stopped": "Stopped",
+          "reignition": "Re-ignition",
+          "ignition_wait": "Ignition: waiting",
+          "recovery_rse_closing": "Recovery: closing RSE",
+          "recovery_boiler_venting": "Recovery: venting boiler",
+          "recovery_ignition": "Recovery: ignition",
+          "recovery_min_feed": "Recovery: minimum feed",
+          "rse_closing_2": "Closing RSE (2)",
+          "fault_stb_na": "Fault: STB/emergency stop",
+          "fault_tilting_grate": "Fault: tilting grate",
+          "fault_overpressure": "Fault: combustion chamber overpressure",
+          "fault_door_contact": "Fault: door contact",
+          "fault_induced_draft": "Fault: induced draught",
+          "fault_environment": "Fault: environment",
+          "error_stb_na": "Error: STB/emergency stop",
+          "error_tilting_grate": "Error: tilting grate",
+          "error_overpressure": "Error: combustion chamber overpressure",
+          "error_door_contact": "Error: door contact",
+          "error_induced_draft": "Error: induced draught",
+          "error_environment": "Error: environment",
+          "error_stoker": "Error: stoker",
+          "fault_stoker": "Fault: stoker",
+          "recovery_stoker_emptying": "Recovery: emptying stoker",
+          "pre_ventilation": "Pre-ventilation",
+          "fault_wood_chips": "Fault: wood chips",
+          "error_wood_chips": "Error: wood chips",
+          "nb_door_open": "NB: door open",
+          "nb_heating_up": "NB: heating up",
+          "nb_heating": "NB: heating",
+          "error_stb_na_2": "Error: STB/emergency stop (2)",
+          "error_general": "Error: general",
+          "nb_fire_out": "NB: fire out",
+          "self_test": "Self-test active",
+          "error_handling_20min": "Error handling 20 min",
+          "error_drop_shaft": "Error: drop shaft",
+          "fault_drop_shaft": "Fault: drop shaft",
+          "cleaning_possible": "Cleaning possible",
+          "heating_cleaning": "Heating - cleaning",
+          "firewood_heating_up": "Firewood: heating up",
+          "firewood_heating": "Firewood: heating",
+          "firewood_heating_shutdown": "Firewood: heating/shutdown",
+          "fault_safe": "Fault (safe)",
+          "egr_overrun": "EGR overrun",
+          "egr_cleaning": "EGR cleaning",
+          "ignition_off": "Ignition off",
+          "filter_cleaning": "Filter cleaning",
+          "heating_up_assistant": "Heating-up assistant",
+          "firewood_ignition": "Firewood: ignition",
+          "firewood_fault": "Firewood: fault",
+          "sensor_check": "Sensor check"
+        }
+      },
+      "fault": {
+        "name": "Fault text",
+        "state_attributes": {
+          "fehlercode": {
+            "name": "Error code"
+          },
+          "weitere": {
+            "name": "Further errors"
+          }
+        }
+      },
+      "operating_hours": {
+        "name": "Operating hours"
+      },
+      "heating_hours": {
+        "name": "Hours heating"
+      },
+      "burner_starts": {
+        "name": "Burner starts"
+      },
+      "hours_until_ash_emptying": {
+        "name": "Heating hours until ash emptying"
+      },
+      "flow_temperature": {
+        "name": "Flow temperature"
+      },
+      "flow_setpoint": {
+        "name": "Flow setpoint"
+      },
+      "room_temperature": {
+        "name": "Room temperature"
+      },
+      "curve_flow": {
+        "name": "Flow by heating curve",
+        "state_attributes": {
+          "kurve": {
+            "name": "Curve"
+          }
+        }
+      },
+      "temperature": {
+        "name": "Temperature"
+      },
+      "pump": {
+        "name": "Pump"
+      },
+      "top": {
+        "name": "Temperature top"
+      },
+      "bottom": {
+        "name": "Temperature bottom"
+      }
+    }
+  },
+  "exceptions": {
+    "cannot_connect": {
+      "message": "Cannot connect to the boiler at {host}: {error}"
+    },
+    "update_failed": {
+      "message": "Reading the boiler failed: {error}"
+    },
+    "cloud_update_failed": {
+      "message": "Reading Fröling Connect failed: {error}"
+    },
+    "cloud_auth_failed": {
+      "message": "Fröling Connect rejected the login."
+    },
+    "value_out_of_range": {
+      "message": "{value} is outside the allowed range {minimum} to {maximum}."
+    },
+    "protocol_disabled": {
+      "message": "The boiler refuses writes: 'MODBUS-Protokoll 2014' is disabled."
+    },
+    "write_rejected": {
+      "message": "The boiler rejected the value: {reason}"
+    },
+    "communication_failed": {
+      "message": "Communication with the boiler failed: {error}"
+    },
+    "remote_control_disabled": {
+      "message": "Remote control via Fröling Connect is disabled."
+    },
+    "cloud_write_failed": {
+      "message": "Switching via Fröling Connect failed: {error}"
+    }
+  },
+  "issues": {
+    "protocol_2014_disabled": {
+      "title": "{name}: Modbus writing disabled",
+      "description": "The boiler answers writes with 'Illegal Function'. At the boiler, open service menu (code -7) → MODBUS settings and set 'MODBUS-Protokoll 2014 verwenden' to JA. Settings can only be changed afterwards."
+    },
+    "remote_control_disabled": {
+      "title": "{name}: remote control via Fröling Connect disabled",
+      "description": "The system operating mode cannot be switched from Home Assistant. Enable 'Fernschalten über connect möglich' at the boiler (Connect settings) or in the Fröling Connect app. This message disappears automatically afterwards."
+    }
+  }
+}

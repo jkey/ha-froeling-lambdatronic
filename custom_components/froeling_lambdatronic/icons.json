@@ -1,0 +1,104 @@
+{
+  "entity": {
+    "binary_sensor": {
+      "boiler_demand": {
+        "default": "mdi:fire-off",
+        "state": {
+          "on": "mdi:fire"
+        }
+      }
+    },
+    "button": {
+      "refresh_parameters": {
+        "default": "mdi:refresh"
+      }
+    },
+    "number": {
+      "pellet_stock": {
+        "default": "mdi:warehouse"
+      },
+      "pellet_stock_minimum": {
+        "default": "mdi:warehouse"
+      },
+      "curve_flow_plus10": {
+        "default": "mdi:chart-line"
+      },
+      "curve_flow_minus10": {
+        "default": "mdi:chart-line"
+      },
+      "setback": {
+        "default": "mdi:thermometer-chevron-down"
+      },
+      "heating_limit": {
+        "default": "mdi:thermometer-lines"
+      },
+      "heating_limit_setback": {
+        "default": "mdi:thermometer-lines"
+      },
+      "recharge_below": {
+        "default": "mdi:water-thermometer"
+      }
+    },
+    "select": {
+      "heating_circuit_mode": {
+        "default": "mdi:radiator",
+        "state": {
+          "off": "mdi:radiator-off",
+          "extra_heating": "mdi:fire",
+          "setback": "mdi:weather-night",
+          "permanent_setback": "mdi:weather-night",
+          "party": "mdi:party-popper"
+        }
+      },
+      "system_operating_mode": {
+        "default": "mdi:cog",
+        "state": {
+          "automatic": "mdi:home-thermometer",
+          "domestic_hot_water": "mdi:water-boiler",
+          "continuous_load": "mdi:fire"
+        }
+      }
+    },
+    "sensor": {
+      "residual_oxygen": {
+        "default": "mdi:molecule"
+      },
+      "induced_draft_speed": {
+        "default": "mdi:fan"
+      },
+      "feed_rate": {
+        "default": "mdi:transfer-right"
+      },
+      "boiler_output": {
+        "default": "mdi:fire"
+      },
+      "pellet_hopper_level": {
+        "default": "mdi:storage-tank"
+      },
+      "pellet_consumption_total": {
+        "default": "mdi:grain"
+      },
+      "pellet_counter_kg": {
+        "default": "mdi:counter"
+      },
+      "system_state": {
+        "default": "mdi:state-machine"
+      },
+      "boiler_state": {
+        "default": "mdi:fire-circle"
+      },
+      "fault": {
+        "default": "mdi:alert-circle-outline"
+      },
+      "burner_starts": {
+        "default": "mdi:counter"
+      },
+      "curve_flow": {
+        "default": "mdi:chart-bell-curve-cumulative"
+      },
+      "pump": {
+        "default": "mdi:pump"
+      }
+    }
+  }
+}

@@ -1,0 +1,56 @@
+[project]
+name = "ha-froeling-lambdatronic"
+version = "0.1.0"
+description = "Home Assistant integration for Fröling Lambdatronic 3200 boilers"
+requires-python = ">=3.14.2"
+dependencies = []
+
+[dependency-groups]
+dev = [
+  "froeling-lambdatronic==0.1.0",
+  "mypy>=1.13",
+  "pytest-homeassistant-custom-component==0.13.375",
+  "ruff>=0.8",
+]
+
+[tool.uv]
+package = false
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+testpaths = ["tests"]
+addopts = "--cov=custom_components.froeling_lambdatronic --cov-report=term-missing --cov-fail-under=95"
+
+[tool.mypy]
+strict = true
+python_version = "3.14"
+files = ["custom_components", "tests"]
+explicit_package_bases = true
+
+[[tool.mypy.overrides]]
+# Home Assistant re-exports names without __all__.
+module = ["homeassistant.*"]
+implicit_reexport = true
+
+[[tool.mypy.overrides]]
+# The test helper package ships no py.typed marker.
+module = ["pytest_homeassistant_custom_component.*"]
+follow_untyped_imports = true
+
+[[tool.mypy.overrides]]
+# Asserting a config entry state again after an await is not a contradiction.
+module = ["tests.*"]
+strict_equality = false
+
+[tool.ruff]
+line-length = 110
+target-version = "py314"
+extend-exclude = ["docs/"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "UP", "B", "SIM", "RUF", "ASYNC", "PT", "ANN", "C4", "PL"]
+ignore = ["PLR2004", "PLR0913"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["PLR0915", "PLR0917", "ANN401"]

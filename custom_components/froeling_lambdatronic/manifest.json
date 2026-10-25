@@ -1,0 +1,15 @@
+{
+  "domain": "froeling_lambdatronic",
+  "name": "Fröling Lambdatronic",
+  "codeowners": ["@jkey"],
+  "config_flow": true,
+  "dependencies": [],
+  "documentation": "https://github.com/jkey/ha-froeling-lambdatronic",
+  "integration_type": "device",
+  "iot_class": "local_polling",
+  "issue_tracker": "https://github.com/jkey/ha-froeling-lambdatronic/issues",
+  "loggers": ["froeling_lambdatronic"],
+  "quality_scale": "platinum",
+  "requirements": ["froeling-lambdatronic==0.1.0"],
+  "version": "0.1.0"
+}
