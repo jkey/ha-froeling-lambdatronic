@@ -333,3 +333,83 @@ async def test_user_flow_partial_equipment(hass: HomeAssistant, mock_client: Mag
         CONF_BUFFERS: [],
     }
     assert result["options"][CONF_HOT_WATER] == []
+
+
+@pytest.mark.usefixtures("mock_cloud")
+async def test_reconfigure_same_gateway_merges_equipment(
+    hass: HomeAssistant, mock_client: MagicMock, mock_config_entry: MockConfigEntry
+) -> None:
+    """Same boiler: a briefly missed component is kept, a new one is stored and enabled."""
+    mock_config_entry.add_to_hass(hass)
+    hass.config_entries.async_update_entry(
+        mock_config_entry, options={**ENTRY_OPTIONS, CONF_HEATING_CIRCUITS: [2]}
+    )
+    await hass.config_entries.async_setup(mock_config_entry.entry_id)
+    await hass.async_block_till_done()
+    mock_client.detect_equipment.return_value = Equipment(heating_circuits=(3, 1), hot_water=(1,), buffers=())
+
+    result = await mock_config_entry.start_reconfigure_flow(hass)
+    result = await hass.config_entries.flow.async_configure(
+        result["flow_id"], {CONF_HOST: HOST, CONF_PORT: 502, CONF_SLAVE: 2}
+    )
+    result = await hass.config_entries.flow.async_configure(result["flow_id"], {CONF_USERNAME: USERNAME})
+    await hass.async_block_till_done()
+
+    assert result["reason"] == "reconfigure_successful"
+    assert mock_config_entry.data[CONF_EQUIPMENT] == {
+        CONF_HEATING_CIRCUITS: [1, 2, 3],
+        CONF_HOT_WATER: [1],
+        CONF_BUFFERS: [1],
+    }
+    assert mock_config_entry.options == {**ENTRY_OPTIONS, CONF_HEATING_CIRCUITS: [2, 3]}
+
+
+@pytest.mark.usefixtures("mock_cloud")
+async def test_reconfigure_new_gateway_replaces_equipment(
+    hass: HomeAssistant, mock_client: MagicMock, mock_config_entry: MockConfigEntry
+) -> None:
+    """Other boiler: the new detection replaces the equipment; new components are enabled."""
+    await setup_integration(hass, mock_config_entry)
+    mock_client.detect_equipment.return_value = Equipment(heating_circuits=(1,), hot_water=(), buffers=(2,))
+
+    result = await mock_config_entry.start_reconfigure_flow(hass)
+    result = await hass.config_entries.flow.async_configure(
+        result["flow_id"], {CONF_HOST: "192.168.70.19", CONF_PORT: 502, CONF_SLAVE: 2}
+    )
+    result = await hass.config_entries.flow.async_configure(result["flow_id"], {CONF_USERNAME: USERNAME})
+    await hass.async_block_till_done()
+
+    assert result["reason"] == "reconfigure_successful"
+    assert mock_config_entry.data[CONF_EQUIPMENT] == {
+        CONF_HEATING_CIRCUITS: [1],
+        CONF_HOT_WATER: [],
+        CONF_BUFFERS: [2],
+    }
+    assert mock_config_entry.options == {
+        **ENTRY_OPTIONS,
+        CONF_HEATING_CIRCUITS: [1],
+        CONF_HOT_WATER: [],
+        CONF_BUFFERS: [2],
+    }
+
+
+@pytest.mark.usefixtures("mock_client")
+async def test_options_ignore_stale_selection(
+    hass: HomeAssistant, mock_config_entry_local: MockConfigEntry
+) -> None:
+    """Selected numbers that are no longer stored are not preselected and do not break the form."""
+    mock_config_entry_local.add_to_hass(hass)
+    hass.config_entries.async_update_entry(
+        mock_config_entry_local, options={**ENTRY_OPTIONS, CONF_HEATING_CIRCUITS: [1, 5]}
+    )
+    await hass.config_entries.async_setup(mock_config_entry_local.entry_id)
+    await hass.async_block_till_done()
+
+    result = await hass.config_entries.options.async_init(mock_config_entry_local.entry_id)
+    result = await hass.config_entries.options.async_configure(
+        result["flow_id"], {CONF_SCAN_INTERVAL: 30, CONF_PARAMETER_INTERVAL: 5}
+    )
+    await hass.async_block_till_done()
+
+    assert result["type"] is FlowResultType.CREATE_ENTRY
+    assert mock_config_entry_local.options == {**ENTRY_OPTIONS, CONF_HEATING_CIRCUITS: [1]}

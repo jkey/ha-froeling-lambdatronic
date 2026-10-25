@@ -76,6 +76,9 @@ eine Reparaturmeldung erklärt, wo es eingeschaltet wird.
 
 Über „Neu konfigurieren“ lassen sich Host, Port, Slave-ID und die Fröling-Connect-Anmeldung
 ändern. Benutzername leer = Connect entfernen; Passwort leer = gespeichertes Passwort behalten.
+Die Ausstattung wird dabei neu erkannt: Beim selben Kessel bleiben bekannte Komponenten
+erhalten, neu erkannte kommen hinzu und sind eingeschaltet; bei einer anderen Adresse gilt die
+neue Erkennung.
 
 ## Geräte und Entitäten
 
@@ -211,6 +214,8 @@ equipment, then optional Fröling Connect credentials (leave empty to skip) and,
 with several facilities, the facility. Options: enabled components, value interval (10–300 s,
 default 30 s), parameter interval (1–60 min, default 5 min). Reconfigure changes host, port,
 slave ID and the Connect login (empty username removes Connect, empty password keeps it).
+Reconfigure detects the equipment again: for the same boiler known components are kept and
+new ones are added and enabled; for another address the new detection applies.
 If "Fernschalten über connect möglich" is disabled, setup and reconfigure still succeed: the
 system operating mode select is unavailable and a repair issue explains how to enable it.
 

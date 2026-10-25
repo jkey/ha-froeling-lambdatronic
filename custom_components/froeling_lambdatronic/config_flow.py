@@ -97,9 +97,9 @@ REAUTH_SCHEMA = probatio.Schema(
 
 def _equipment_data(equipment: Equipment) -> dict[str, list[int]]:
     return {
-        CONF_HEATING_CIRCUITS: list(equipment.heating_circuits),
-        CONF_HOT_WATER: list(equipment.hot_water),
-        CONF_BUFFERS: list(equipment.buffers),
+        CONF_HEATING_CIRCUITS: sorted(equipment.heating_circuits),
+        CONF_HOT_WATER: sorted(equipment.hot_water),
+        CONF_BUFFERS: sorted(equipment.buffers),
     }
 
 
@@ -112,10 +112,33 @@ def _equipment_schema(
         if not detected[key]:
             continue
         options = [SelectOptionDict(value=str(n), label=str(n)) for n in detected[key]]
-        fields[probatio.Required(key, default=[str(n) for n in selected.get(key, detected[key])])] = (
-            SelectSelector(SelectSelectorConfig(options=options, multiple=True, mode=SelectSelectorMode.LIST))
+        # Only offered numbers can be preselected, stale ones would fail the validation.
+        default = [str(n) for n in selected.get(key, detected[key]) if n in detected[key]]
+        fields[probatio.Required(key, default=default)] = SelectSelector(
+            SelectSelectorConfig(options=options, multiple=True, mode=SelectSelectorMode.LIST)
         )
     return probatio.Schema(fields)
+
+
+def _reconfigured_equipment(
+    entry: FroelingConfigEntry, detected: Mapping[str, list[int]], same_boiler: bool
+) -> tuple[dict[str, list[int]], dict[str, Any]]:
+    """Stored equipment and options after a reconfiguration.
+
+    For the same boiler the stored equipment is the union of the previous and the new
+    detection, so a component missed once keeps its device. Newly detected components
+    are enabled in the options.
+    """
+    previous = entry.data[CONF_EQUIPMENT]
+    equipment: dict[str, list[int]] = {}
+    options: dict[str, Any] = dict(entry.options)
+    for key in EQUIPMENT_KEYS:
+        stored = set(detected[key]) | set(previous[key]) if same_boiler else set(detected[key])
+        added = set(detected[key]) - set(previous[key])
+        enabled = set(entry.options.get(key, previous[key])) | added
+        equipment[key] = sorted(stored)
+        options[key] = sorted(enabled & stored)
+    return equipment, options
 
 
 def _equipment_selection(
@@ -328,8 +351,12 @@ class FroelingConfigFlow(ConfigFlow, domain=DOMAIN):
         if facility_id is not None:
             data[CONF_CLOUD] = {**self._credentials, CONF_FACILITY_ID: facility_id}
         if self.source == SOURCE_RECONFIGURE:
+            entry: FroelingConfigEntry = self._get_reconfigure_entry()
+            data[CONF_EQUIPMENT], options = _reconfigured_equipment(
+                entry, data[CONF_EQUIPMENT], same_boiler=self.unique_id == entry.unique_id
+            )
             return self.async_update_reload_and_abort(
-                self._get_reconfigure_entry(), unique_id=self.unique_id, data=data
+                entry, unique_id=self.unique_id, data=data, options=options
             )
         return self.async_create_entry(title=self._name, data=data, options=self._options)
 
