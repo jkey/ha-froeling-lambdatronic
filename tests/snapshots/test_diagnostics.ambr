@@ -1,0 +1,81 @@
+# serializer version: 1
+# name: test_diagnostics
+  dict({
+    'cloud': dict({
+      'last_exception': None,
+      'last_update_success': True,
+      'state': dict({
+        'operating_mode': 2,
+        'remote_control_allowed': True,
+      }),
+    }),
+    'entry': dict({
+      'data': dict({
+        'cloud': dict({
+          'facility_id': '**REDACTED**',
+          'password': '**REDACTED**',
+          'username': '**REDACTED**',
+        }),
+        'equipment': dict({
+          'buffers': list([
+            1,
+          ]),
+          'heating_circuits': list([
+            1,
+            2,
+          ]),
+          'hot_water': list([
+            1,
+          ]),
+        }),
+        'host': '192.168.70.18',
+        'port': 502,
+        'slave': 2,
+      }),
+      'options': dict({
+        'buffers': list([
+          1,
+        ]),
+        'heating_circuits': list([
+          1,
+          2,
+        ]),
+        'hot_water': list([
+          1,
+        ]),
+        'parameter_interval': 5,
+        'scan_interval': 30,
+      }),
+    }),
+    'equipment': dict({
+      'buffers': list([
+        1,
+      ]),
+      'heating_circuits': list([
+        1,
+        2,
+      ]),
+      'hot_water': list([
+        1,
+      ]),
+    }),
+    'parameters': dict({
+      'last_exception': None,
+      'last_update_success': True,
+      'raw': dict({
+        '40001': 140,
+        '48047': 1,
+        '48048': 1,
+      }),
+    }),
+    'values': dict({
+      'last_exception': None,
+      'last_update_success': True,
+      'raw': dict({
+        '30001': 126,
+        '34001': 2,
+        '34002': 19,
+      }),
+    }),
+  })
+# ---
