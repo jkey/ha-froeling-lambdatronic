@@ -6,12 +6,19 @@ from typing import Any, cast
 
 from froeling_lambdatronic import (
     Equipment,
+    FroelingError,
+    ProtocolNotEnabledError,
+    RegisterDef,
+    ValueOutOfRangeError,
+    WriteRejectedError,
 )
+from homeassistant.exceptions import HomeAssistantError, ServiceValidationError
+from homeassistant.helpers import issue_registry as ir
 from homeassistant.helpers.device_registry import ChildDeviceInfo, DeviceInfo
 from homeassistant.helpers.update_coordinator import CoordinatorEntity, DataUpdateCoordinator
 
-from .const import DOMAIN
-from .coordinator import FroelingConfigEntry
+from .const import DOMAIN, ISSUE_PROTOCOL_DISABLED
+from .coordinator import FroelingConfigEntry, ParametersCoordinator
 
 
 class ComponentKind(StrEnum):
@@ -83,3 +90,48 @@ class FroelingEntity[CoordinatorT: DataUpdateCoordinator[Any]](CoordinatorEntity
         self.component = component
         self._attr_unique_id = f"{entry.entry_id}_{component.key_prefix}{key}"
         self._attr_device_info = device_info(entry, component)
+
+
+async def async_write_register(
+    coordinator: ParametersCoordinator, register: RegisterDef, value: float
+) -> None:
+    """Write one setting, translate library errors and refresh the parameters."""
+    entry = coordinator.config_entry
+    issue_id = f"{ISSUE_PROTOCOL_DISABLED}_{entry.entry_id}"
+    try:
+        await coordinator.client.write(register, value)
+    except ValueOutOfRangeError as err:
+        raise ServiceValidationError(
+            translation_domain=DOMAIN,
+            translation_key="value_out_of_range",
+            translation_placeholders={
+                "value": str(value),
+                "minimum": str(err.minimum),
+                "maximum": str(err.maximum),
+            },
+        ) from err
+    except ProtocolNotEnabledError as err:
+        ir.async_create_issue(
+            coordinator.hass,
+            DOMAIN,
+            issue_id,
+            is_fixable=False,
+            severity=ir.IssueSeverity.ERROR,
+            translation_key=ISSUE_PROTOCOL_DISABLED,
+            translation_placeholders={"name": entry.title},
+        )
+        raise HomeAssistantError(translation_domain=DOMAIN, translation_key="protocol_disabled") from err
+    except WriteRejectedError as err:
+        raise HomeAssistantError(
+            translation_domain=DOMAIN,
+            translation_key="write_rejected",
+            translation_placeholders={"reason": err.reason},
+        ) from err
+    except FroelingError as err:
+        raise HomeAssistantError(
+            translation_domain=DOMAIN,
+            translation_key="communication_failed",
+            translation_placeholders={"error": str(err)},
+        ) from err
+    ir.async_delete_issue(coordinator.hass, DOMAIN, issue_id)
+    await coordinator.async_request_refresh()
