@@ -176,3 +176,9 @@ OPERATING_MODE_KEYS: Final[dict[int, str]] = {
     1: "domestic_hot_water",
     2: "automatic",
 }
+
+# Operating mode of a hot water tank, only in Fröling Connect ('mode' of the DHW component).
+HOT_WATER_MODE_KEYS: Final[dict[int, str]] = {
+    1: "auto",
+    2: "extra_charge",
+}

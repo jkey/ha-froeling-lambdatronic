@@ -1,0 +1,149 @@
+get_schedule:
+  target:
+    entity:
+      integration: froeling_lambdatronic
+      domain:
+        - climate
+        - water_heater
+
+set_schedule:
+  target:
+    entity:
+      integration: froeling_lambdatronic
+      domain:
+        - climate
+        - water_heater
+  fields:
+    monday:
+      example: |
+        - from: "06:00"
+          to: "22:00"
+      selector:
+        object:
+          multiple: true
+          label_field: from
+          description_field: to
+          translation_key: phase
+          fields:
+            from:
+              required: true
+              selector:
+                time:
+            to:
+              required: true
+              selector:
+                time:
+    tuesday:
+      example: |
+        - from: "06:00"
+          to: "22:00"
+      selector:
+        object:
+          multiple: true
+          label_field: from
+          description_field: to
+          translation_key: phase
+          fields:
+            from:
+              required: true
+              selector:
+                time:
+            to:
+              required: true
+              selector:
+                time:
+    wednesday:
+      example: |
+        - from: "06:00"
+          to: "22:00"
+      selector:
+        object:
+          multiple: true
+          label_field: from
+          description_field: to
+          translation_key: phase
+          fields:
+            from:
+              required: true
+              selector:
+                time:
+            to:
+              required: true
+              selector:
+                time:
+    thursday:
+      example: |
+        - from: "06:00"
+          to: "22:00"
+      selector:
+        object:
+          multiple: true
+          label_field: from
+          description_field: to
+          translation_key: phase
+          fields:
+            from:
+              required: true
+              selector:
+                time:
+            to:
+              required: true
+              selector:
+                time:
+    friday:
+      example: |
+        - from: "06:00"
+          to: "22:00"
+      selector:
+        object:
+          multiple: true
+          label_field: from
+          description_field: to
+          translation_key: phase
+          fields:
+            from:
+              required: true
+              selector:
+                time:
+            to:
+              required: true
+              selector:
+                time:
+    saturday:
+      example: |
+        - from: "06:00"
+          to: "22:00"
+      selector:
+        object:
+          multiple: true
+          label_field: from
+          description_field: to
+          translation_key: phase
+          fields:
+            from:
+              required: true
+              selector:
+                time:
+            to:
+              required: true
+              selector:
+                time:
+    sunday:
+      example: |
+        - from: "06:00"
+          to: "22:00"
+      selector:
+        object:
+          multiple: true
+          label_field: from
+          description_field: to
+          translation_key: phase
+          fields:
+            from:
+              required: true
+              selector:
+                time:
+            to:
+              required: true
+              selector:
+                time:

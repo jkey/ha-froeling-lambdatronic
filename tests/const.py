@@ -133,6 +133,7 @@ CLOUD_OVERVIEW = parse_overview(load_fixture("overview.json"))
 CLOUD_DETAILS = tuple(
     parse_component_detail(load_fixture(f"component_{c.component_id}.json")) for c in CLOUD_COMPONENTS
 )
+CLOUD_SCHEDULES = {d.component.key: d.schedule for d in CLOUD_DETAILS if d.schedule}
 SYSTEM_INFO = parse_system_info(load_fixture("info.json"))
 HEADER = parse_header(load_fixture("header.json"))
 CLOUD_ERRORS = parse_errors(load_fixture("errors.json"))

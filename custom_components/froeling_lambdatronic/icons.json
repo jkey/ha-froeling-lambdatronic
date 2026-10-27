@@ -169,6 +169,23 @@
           }
         }
       }
+    },
+    "water_heater": {
+      "hot_water": {
+        "default": "mdi:water-boiler",
+        "state": {
+          "auto": "mdi:water-boiler-auto",
+          "extra_charge": "mdi:water-boiler-alert"
+        }
+      }
+    }
+  },
+  "services": {
+    "get_schedule": {
+      "service": "mdi:calendar-search"
+    },
+    "set_schedule": {
+      "service": "mdi:calendar-edit"
     }
   }
 }

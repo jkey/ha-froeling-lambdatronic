@@ -1,6 +1,7 @@
 """Choice of the source per value (Modbus or Fröling Connect) and the shared write path."""
 
-from collections.abc import Mapping
+from collections.abc import AsyncIterator, Mapping, Sequence
+from contextlib import asynccontextmanager
 from datetime import time
 from enum import StrEnum
 from typing import Any
@@ -241,10 +242,40 @@ class FroelingSources:
 
     async def _async_write_cloud(self, key: str, value: WriteValue) -> None:
         assert self._cloud_client is not None
-        assert self._cloud is not None
         assert self._facility_id is not None
-        try:
+        async with self._cloud_errors(value):
             await self._cloud_client.set_value(self._facility_id, key, value)
+
+    async def async_get_schedule(self, component_key: str) -> Mapping[Weekday, tuple[Phase, ...]]:
+        """Weekly schedule of a component ('hc1', 'dhw1'), read from Fröling Connect."""
+        client, facility_id = self._schedule_client()
+        async with self._cloud_errors(None, failed_key="cloud_update_failed"):
+            return await client.get_schedule(facility_id, component_key)
+
+    async def async_set_schedule(
+        self, component_key: str, changes: Mapping[Weekday, Sequence[Phase]]
+    ) -> None:
+        """Replace the phases of the given days and read the cloud again."""
+        client, facility_id = self._schedule_client()
+        async with self._cloud_errors(None):
+            await client.set_schedule(facility_id, component_key, changes)
+        await self.coordinator(Source.CLOUD).async_request_refresh()
+
+    def _schedule_client(self) -> tuple[FroelingConnectClient, int]:
+        """Schedules exist only in Fröling Connect."""
+        if self._cloud_client is None or self._facility_id is None:
+            raise ServiceValidationError(
+                translation_domain=DOMAIN, translation_key="schedule_requires_connect"
+            )
+        return self._cloud_client, self._facility_id
+
+    @asynccontextmanager
+    async def _cloud_errors(
+        self, value: WriteValue | None, *, failed_key: str = "cloud_write_failed"
+    ) -> AsyncIterator[None]:
+        """Translate the errors of a Fröling Connect request; fix login and permission problems."""
+        try:
+            yield
         except ValueOutOfRangeError as err:
             raise _out_of_range(value, err) from err
         except AuthenticationError as err:
@@ -253,7 +284,7 @@ class FroelingSources:
         except RemoteControlDisabledError as err:
             async_create_remote_control_issue(self._hass, self.entry)
             # Read the permission again so that the cloud entities become unavailable at once.
-            await self._cloud.async_request_refresh()
+            await self.coordinator(Source.CLOUD).async_request_refresh()
             raise HomeAssistantError(
                 translation_domain=DOMAIN, translation_key="remote_control_disabled"
             ) from err
@@ -262,12 +293,12 @@ class FroelingSources:
         except FroelingError as err:
             raise HomeAssistantError(
                 translation_domain=DOMAIN,
-                translation_key="cloud_write_failed",
+                translation_key=failed_key,
                 translation_placeholders={"error": str(err)},
             ) from err
 
 
-def _out_of_range(value: WriteValue, err: ValueOutOfRangeError) -> ServiceValidationError:
+def _out_of_range(value: WriteValue | None, err: ValueOutOfRangeError) -> ServiceValidationError:
     return ServiceValidationError(
         translation_domain=DOMAIN,
         translation_key="value_out_of_range",

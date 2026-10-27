@@ -15,6 +15,7 @@ from .const import (
     CLOUD_DETAILS_BY_ID,
     CLOUD_ERRORS,
     CLOUD_OVERVIEW,
+    CLOUD_SCHEDULES,
     CLOUD_STATE,
     CLOUD_UNIQUE_ID,
     ENTRY_ID,
@@ -117,6 +118,8 @@ def mock_cloud() -> Generator[MagicMock]:
     cloud.get_system_info = AsyncMock(return_value=SYSTEM_INFO)
     cloud.get_header = AsyncMock(return_value=HEADER)
     cloud.set_value = AsyncMock()
+    cloud.get_schedule = AsyncMock(side_effect=lambda facility_id, key: CLOUD_SCHEDULES[key])
+    cloud.set_schedule = AsyncMock()
     cloud.set_operating_mode = AsyncMock()
     # Tests change cloud values with `mock_cloud.snapshot_changes` (None removes a key).
     cloud.snapshot_changes = {}

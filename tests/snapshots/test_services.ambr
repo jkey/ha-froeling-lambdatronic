@@ -1,0 +1,97 @@
+# serializer version: 1
+# name: test_get_schedule[dhw1]
+  dict({
+    'water_heater.froling_pe1_brauchwasser': dict({
+      'friday': list([
+        dict({
+          'from': '04:00',
+          'to': '22:00',
+        }),
+      ]),
+      'monday': list([
+        dict({
+          'from': '04:00',
+          'to': '22:00',
+        }),
+      ]),
+      'saturday': list([
+        dict({
+          'from': '06:00',
+          'to': '22:00',
+        }),
+      ]),
+      'sunday': list([
+        dict({
+          'from': '06:00',
+          'to': '22:00',
+        }),
+      ]),
+      'thursday': list([
+        dict({
+          'from': '04:00',
+          'to': '22:00',
+        }),
+      ]),
+      'tuesday': list([
+        dict({
+          'from': '04:00',
+          'to': '22:00',
+        }),
+      ]),
+      'wednesday': list([
+        dict({
+          'from': '04:00',
+          'to': '22:00',
+        }),
+      ]),
+    }),
+  })
+# ---
+# name: test_get_schedule[hc1]
+  dict({
+    'climate.froling_pe1_wohnbereich': dict({
+      'friday': list([
+        dict({
+          'from': '04:30',
+          'to': '22:00',
+        }),
+      ]),
+      'monday': list([
+        dict({
+          'from': '04:30',
+          'to': '22:00',
+        }),
+      ]),
+      'saturday': list([
+        dict({
+          'from': '06:00',
+          'to': '22:00',
+        }),
+      ]),
+      'sunday': list([
+        dict({
+          'from': '06:00',
+          'to': '22:00',
+        }),
+      ]),
+      'thursday': list([
+        dict({
+          'from': '04:30',
+          'to': '22:00',
+        }),
+      ]),
+      'tuesday': list([
+        dict({
+          'from': '04:30',
+          'to': '22:00',
+        }),
+      ]),
+      'wednesday': list([
+        dict({
+          'from': '04:30',
+          'to': '22:00',
+        }),
+      ]),
+    }),
+  })
+# ---

@@ -55,10 +55,8 @@ HEATING_CIRCUIT_NUMBERS: tuple[NumberEntityDescription, ...] = (
     _setting("buffer_overheat_protection"),
 )
 
-HOT_WATER_NUMBERS: tuple[NumberEntityDescription, ...] = (
-    _setting("setpoint"),
-    _setting("recharge_below"),
-)
+# The setpoint is part of the water heater entity.
+HOT_WATER_NUMBERS: tuple[NumberEntityDescription, ...] = (_setting("recharge_below"),)
 
 BUFFER_NUMBERS: tuple[NumberEntityDescription, ...] = (_setting("circuit_release"),)
 

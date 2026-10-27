@@ -182,9 +182,6 @@
       "heating_limit_setback": {
         "name": "Heizgrenze Absenkbetrieb"
       },
-      "setpoint": {
-        "name": "Solltemperatur"
-      },
       "recharge_below": {
         "name": "Nachladen unter"
       },
@@ -463,6 +460,14 @@
           }
         }
       }
+    },
+    "water_heater": {
+      "hot_water": {
+        "state": {
+          "auto": "Automatik",
+          "extra_charge": "Extraladen"
+        }
+      }
     }
   },
   "exceptions": {
@@ -501,6 +506,12 @@
     },
     "not_writable": {
       "message": "{key} lässt sich mit dieser Verbindung nicht schreiben."
+    },
+    "schedule_requires_connect": {
+      "message": "Zeitpläne lassen sich nur mit Fröling Connect lesen und schreiben."
+    },
+    "invalid_schedule": {
+      "message": "Ungültiger Zeitplan für {day}: {error}"
     }
   },
   "issues": {
@@ -511,6 +522,54 @@
     "remote_control_disabled": {
       "title": "{name}: Fernschalten über Fröling Connect ausgeschaltet",
       "description": "Einstellungen lassen sich über Fröling Connect nicht aus Home Assistant ändern; die betroffenen Entitäten sind nicht verfügbar. Am Kessel (Connect-Einstellungen) oder in der Fröling-Connect-App „Fernschalten über connect möglich“ einschalten. Danach verschwindet diese Meldung von selbst."
+    }
+  },
+  "services": {
+    "get_schedule": {
+      "name": "Zeitplan lesen",
+      "description": "Liest die wöchentlichen Einschaltphasen von Heizkreisen oder Boilern aus Fröling Connect."
+    },
+    "set_schedule": {
+      "name": "Zeitplan schreiben",
+      "description": "Schreibt die wöchentlichen Einschaltphasen von Heizkreisen oder Boilern über Fröling Connect. Nicht angegebene Tage bleiben unverändert.",
+      "fields": {
+        "monday": {
+          "name": "Montag",
+          "description": "Einschaltphasen am Montag (bis zu vier, „bis“ darf 24:00 sein). Weglassen, um den Tag zu behalten; leere Liste leert ihn."
+        },
+        "tuesday": {
+          "name": "Dienstag",
+          "description": "Einschaltphasen am Dienstag (bis zu vier, „bis“ darf 24:00 sein). Weglassen, um den Tag zu behalten; leere Liste leert ihn."
+        },
+        "wednesday": {
+          "name": "Mittwoch",
+          "description": "Einschaltphasen am Mittwoch (bis zu vier, „bis“ darf 24:00 sein). Weglassen, um den Tag zu behalten; leere Liste leert ihn."
+        },
+        "thursday": {
+          "name": "Donnerstag",
+          "description": "Einschaltphasen am Donnerstag (bis zu vier, „bis“ darf 24:00 sein). Weglassen, um den Tag zu behalten; leere Liste leert ihn."
+        },
+        "friday": {
+          "name": "Freitag",
+          "description": "Einschaltphasen am Freitag (bis zu vier, „bis“ darf 24:00 sein). Weglassen, um den Tag zu behalten; leere Liste leert ihn."
+        },
+        "saturday": {
+          "name": "Samstag",
+          "description": "Einschaltphasen am Samstag (bis zu vier, „bis“ darf 24:00 sein). Weglassen, um den Tag zu behalten; leere Liste leert ihn."
+        },
+        "sunday": {
+          "name": "Sonntag",
+          "description": "Einschaltphasen am Sonntag (bis zu vier, „bis“ darf 24:00 sein). Weglassen, um den Tag zu behalten; leere Liste leert ihn."
+        }
+      }
+    }
+  },
+  "selector": {
+    "phase": {
+      "fields": {
+        "from": "Von",
+        "to": "Bis"
+      }
     }
   }
 }

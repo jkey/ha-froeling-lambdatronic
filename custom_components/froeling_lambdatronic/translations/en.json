@@ -182,9 +182,6 @@
       "heating_limit_setback": {
         "name": "Heating limit setback"
       },
-      "setpoint": {
-        "name": "Setpoint"
-      },
       "recharge_below": {
         "name": "Recharge below"
       },
@@ -463,6 +460,14 @@
           }
         }
       }
+    },
+    "water_heater": {
+      "hot_water": {
+        "state": {
+          "auto": "Automatic",
+          "extra_charge": "Extra charge"
+        }
+      }
     }
   },
   "exceptions": {
@@ -501,6 +506,12 @@
     },
     "not_writable": {
       "message": "{key} cannot be written with this connection."
+    },
+    "schedule_requires_connect": {
+      "message": "Schedules can only be read and written with Fröling Connect."
+    },
+    "invalid_schedule": {
+      "message": "Invalid schedule for {day}: {error}"
     }
   },
   "issues": {
@@ -511,6 +522,54 @@
     "remote_control_disabled": {
       "title": "{name}: remote control via Fröling Connect disabled",
       "description": "Settings cannot be changed via Fröling Connect from Home Assistant; the affected entities are unavailable. Enable 'Fernschalten über connect möglich' at the boiler (Connect settings) or in the Fröling Connect app. This message disappears automatically afterwards."
+    }
+  },
+  "services": {
+    "get_schedule": {
+      "name": "Get schedule",
+      "description": "Reads the weekly switch-on phases of heating circuits or hot water tanks from Fröling Connect."
+    },
+    "set_schedule": {
+      "name": "Set schedule",
+      "description": "Writes the weekly switch-on phases of heating circuits or hot water tanks via Fröling Connect. Days not given stay unchanged.",
+      "fields": {
+        "monday": {
+          "name": "Monday",
+          "description": "Switch-on phases on Monday (up to four, 'to' may be 24:00). Leave out to keep the day, give an empty list to clear it."
+        },
+        "tuesday": {
+          "name": "Tuesday",
+          "description": "Switch-on phases on Tuesday (up to four, 'to' may be 24:00). Leave out to keep the day, give an empty list to clear it."
+        },
+        "wednesday": {
+          "name": "Wednesday",
+          "description": "Switch-on phases on Wednesday (up to four, 'to' may be 24:00). Leave out to keep the day, give an empty list to clear it."
+        },
+        "thursday": {
+          "name": "Thursday",
+          "description": "Switch-on phases on Thursday (up to four, 'to' may be 24:00). Leave out to keep the day, give an empty list to clear it."
+        },
+        "friday": {
+          "name": "Friday",
+          "description": "Switch-on phases on Friday (up to four, 'to' may be 24:00). Leave out to keep the day, give an empty list to clear it."
+        },
+        "saturday": {
+          "name": "Saturday",
+          "description": "Switch-on phases on Saturday (up to four, 'to' may be 24:00). Leave out to keep the day, give an empty list to clear it."
+        },
+        "sunday": {
+          "name": "Sunday",
+          "description": "Switch-on phases on Sunday (up to four, 'to' may be 24:00). Leave out to keep the day, give an empty list to clear it."
+        }
+      }
+    }
+  },
+  "selector": {
+    "phase": {
+      "fields": {
+        "from": "From",
+        "to": "To"
+      }
     }
   }
 }

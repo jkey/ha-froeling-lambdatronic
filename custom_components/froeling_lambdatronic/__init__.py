@@ -7,10 +7,12 @@ from froeling_lambdatronic import Equipment, FroelingConnectClient, FroelingErro
 from homeassistant.const import CONF_HOST, CONF_PASSWORD, CONF_PORT, CONF_USERNAME, Platform
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.exceptions import ConfigEntryNotReady
+from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers import issue_registry as ir
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
+from homeassistant.helpers.typing import ConfigType
 
 from .const import (
     CONF_BUFFERS,
@@ -36,6 +38,7 @@ from .coordinator import (
     ModbusValuesCoordinator,
 )
 from .entity import ComponentKind, child_device_info, components
+from .services import async_setup_services
 from .sources import FroelingSources
 
 PLATFORMS = [
@@ -47,7 +50,10 @@ PLATFORMS = [
     Platform.SENSOR,
     Platform.SWITCH,
     Platform.TIME,
+    Platform.WATER_HEATER,
 ]
+
+CONFIG_SCHEMA = cv.config_entry_only_config_schema(DOMAIN)
 
 
 def equipment_from_data(data: Mapping[str, Any]) -> Equipment:
@@ -58,6 +64,12 @@ def equipment_from_data(data: Mapping[str, Any]) -> Equipment:
         buffers=tuple(data[CONF_BUFFERS]),
         circulation_pump=data[CONF_CIRCULATION_PUMP],
     )
+
+
+async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
+    """Register the actions of the integration."""
+    async_setup_services(hass)
+    return True
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: FroelingConfigEntry) -> bool:
