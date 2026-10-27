@@ -1,4 +1,4 @@
-"""Config flow of the Fröling Lambdatronic integration."""
+"""Config flow of the Fröling Lambdatronic integration: Modbus, Fröling Connect or both."""
 
 import logging
 from collections.abc import Mapping
@@ -14,6 +14,8 @@ from froeling_lambdatronic import (
     FroelingError,
     LambdatronicClient,
     NoResponseError,
+    equipment_from_components,
+    merge_equipment,
 )
 from homeassistant.config_entries import (
     SOURCE_RECONFIGURE,
@@ -22,8 +24,9 @@ from homeassistant.config_entries import (
     ConfigFlowResult,
     OptionsFlowWithReload,
 )
-from homeassistant.const import CONF_HOST, CONF_NAME, CONF_PASSWORD, CONF_PORT, CONF_USERNAME
-from homeassistant.core import HomeAssistant, callback
+from homeassistant.const import CONF_HOST, CONF_PASSWORD, CONF_PORT, CONF_USERNAME
+from homeassistant.core import callback
+from homeassistant.data_entry_flow import section
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.selector import (
     NumberSelector,
@@ -32,16 +35,17 @@ from homeassistant.helpers.selector import (
     SelectOptionDict,
     SelectSelector,
     SelectSelectorConfig,
-    SelectSelectorMode,
     TextSelector,
     TextSelectorConfig,
     TextSelectorType,
 )
+from homeassistant.helpers.translation import async_get_translations
 
 from .const import (
     CONF_BUFFERS,
     CONF_CIRCULATION_PUMP,
     CONF_CLOUD,
+    CONF_CLOUD_INTERVAL,
     CONF_EQUIPMENT,
     CONF_FACILITY_ID,
     CONF_HEATING_CIRCUITS,
@@ -49,22 +53,27 @@ from .const import (
     CONF_PARAMETER_INTERVAL,
     CONF_SCAN_INTERVAL,
     CONF_SLAVE,
-    DEFAULT_NAME,
+    DEFAULT_CLOUD_INTERVAL,
     DEFAULT_PARAMETER_INTERVAL,
     DEFAULT_PORT,
     DEFAULT_SCAN_INTERVAL,
     DEFAULT_SLAVE,
     DOMAIN,
+    MAX_CLOUD_INTERVAL,
     MAX_PARAMETER_INTERVAL,
     MAX_SCAN_INTERVAL,
+    MIN_CLOUD_INTERVAL,
     MIN_PARAMETER_INTERVAL,
     MIN_SCAN_INTERVAL,
+    ConnectionType,
+    connection_type,
 )
 from .coordinator import FroelingConfigEntry
 
 _LOGGER = logging.getLogger(__name__)
 
-EQUIPMENT_KEYS = (CONF_HEATING_CIRCUITS, CONF_HOT_WATER, CONF_BUFFERS)
+CONF_ADVANCED = "advanced"
+TITLE = "Fröling"
 
 
 def _box(minimum: int, maximum: int, unit: str | None = None) -> probatio.All[int]:
@@ -74,105 +83,39 @@ def _box(minimum: int, maximum: int, unit: str | None = None) -> probatio.All[in
     return probatio.All(NumberSelector(config), probatio.Coerce(int))
 
 
-CONNECTION_SCHEMA = probatio.Schema(
+MODBUS_SCHEMA = probatio.Schema(
     {
         probatio.Required(CONF_HOST): TextSelector(),
-        probatio.Required(CONF_PORT, default=DEFAULT_PORT): _box(1, 65535),
-        probatio.Required(CONF_SLAVE, default=DEFAULT_SLAVE): _box(1, 247),
+        probatio.Required(CONF_ADVANCED): section(
+            probatio.Schema(
+                {
+                    probatio.Required(CONF_PORT, default=DEFAULT_PORT): _box(1, 65535),
+                    probatio.Required(CONF_SLAVE, default=DEFAULT_SLAVE): _box(1, 247),
+                }
+            ),
+            {"collapsed": True},
+        ),
     }
 )
-USER_SCHEMA = CONNECTION_SCHEMA.extend({probatio.Required(CONF_NAME, default=DEFAULT_NAME): TextSelector()})
+EMAIL = TextSelector(TextSelectorConfig(type=TextSelectorType.EMAIL))
+PASSWORD = TextSelector(TextSelectorConfig(type=TextSelectorType.PASSWORD))
 CLOUD_SCHEMA = probatio.Schema(
-    {
-        probatio.Optional(CONF_USERNAME): TextSelector(TextSelectorConfig(type=TextSelectorType.EMAIL)),
-        probatio.Optional(CONF_PASSWORD): TextSelector(TextSelectorConfig(type=TextSelectorType.PASSWORD)),
-    }
+    {probatio.Required(CONF_USERNAME): EMAIL, probatio.Required(CONF_PASSWORD): PASSWORD}
 )
-REAUTH_SCHEMA = probatio.Schema(
-    {
-        probatio.Required(CONF_USERNAME): TextSelector(TextSelectorConfig(type=TextSelectorType.EMAIL)),
-        probatio.Required(CONF_PASSWORD): TextSelector(TextSelectorConfig(type=TextSelectorType.PASSWORD)),
-    }
+# Reconfiguring with the same username may keep the stored password.
+RECONFIGURE_CLOUD_SCHEMA = probatio.Schema(
+    {probatio.Required(CONF_USERNAME): EMAIL, probatio.Optional(CONF_PASSWORD): PASSWORD}
 )
 
 
-def _equipment_data(equipment: Equipment) -> dict[str, Any]:
+def equipment_data(equipment: Equipment) -> dict[str, Any]:
+    """Equipment as stored in the entry data."""
     return {
         CONF_HEATING_CIRCUITS: sorted(equipment.heating_circuits),
         CONF_HOT_WATER: sorted(equipment.hot_water),
         CONF_BUFFERS: sorted(equipment.buffers),
         CONF_CIRCULATION_PUMP: equipment.circulation_pump,
     }
-
-
-def _equipment_schema(
-    detected: Mapping[str, list[int]], selected: Mapping[str, list[int]]
-) -> probatio.Schema:
-    """Multi-selects of the detected components, preselected with the current selection."""
-    fields: dict[probatio.Marker, Any] = {}
-    for key in EQUIPMENT_KEYS:
-        if not detected[key]:
-            continue
-        options = [SelectOptionDict(value=str(n), label=str(n)) for n in detected[key]]
-        # Only offered numbers can be preselected, stale ones would fail the validation.
-        default = [str(n) for n in selected.get(key, detected[key]) if n in detected[key]]
-        fields[probatio.Required(key, default=default)] = SelectSelector(
-            SelectSelectorConfig(options=options, multiple=True, mode=SelectSelectorMode.LIST)
-        )
-    return probatio.Schema(fields)
-
-
-def _reconfigured_equipment(
-    entry: FroelingConfigEntry, detected: Mapping[str, Any], same_boiler: bool
-) -> tuple[dict[str, Any], dict[str, Any]]:
-    """Stored equipment and options after a reconfiguration.
-
-    For the same boiler the stored equipment is the union of the previous and the new
-    detection, so a component missed once keeps its device. Newly detected components
-    are enabled in the options.
-    """
-    previous = entry.data[CONF_EQUIPMENT]
-    equipment: dict[str, Any] = {
-        CONF_CIRCULATION_PUMP: detected[CONF_CIRCULATION_PUMP]
-        or (same_boiler and previous[CONF_CIRCULATION_PUMP])
-    }
-    options: dict[str, Any] = dict(entry.options)
-    for key in EQUIPMENT_KEYS:
-        stored = set(detected[key]) | set(previous[key]) if same_boiler else set(detected[key])
-        added = set(detected[key]) - set(previous[key])
-        enabled = set(entry.options.get(key, previous[key])) | added
-        equipment[key] = sorted(stored)
-        options[key] = sorted(enabled & stored)
-    return equipment, options
-
-
-def _equipment_selection(
-    detected: Mapping[str, list[int]], user_input: Mapping[str, Any]
-) -> dict[str, list[int]]:
-    return {
-        key: sorted(int(n) for n in user_input.get(key, [])) if detected[key] else []
-        for key in EQUIPMENT_KEYS
-    }
-
-
-async def _async_detect(
-    host: str, port: int, slave: int, running: LambdatronicClient | None = None
-) -> Equipment:
-    """Read the system state and detect the equipment.
-
-    A running client of the same entry is reused: the gateway mixes up answers
-    when two clients talk to it at the same time.
-    """
-    if running is not None:
-        await running.probe()
-        return await running.detect_equipment()
-    client = LambdatronicClient(host, port, slave)
-    try:
-        await client.connect()
-        await client.probe()
-        return await client.detect_equipment()
-    finally:
-        await client.close()
 
 
 def _modbus_error(err: FroelingError) -> str:
@@ -183,163 +126,65 @@ def _modbus_error(err: FroelingError) -> str:
     return "cannot_connect"
 
 
-async def _async_check_cloud(
-    hass: HomeAssistant, username: str, password: str, facility_id: int | None = None
-) -> tuple[str | None, list[Facility]]:
-    """Log in to Fröling Connect.
-
-    Returns an error key or the facilities still to choose from. A single facility
-    in the result is the chosen one; its state could be read. Remote control being
-    disabled does not block the flow: the cloud coordinator raises a repair issue.
-    """
-    client = FroelingConnectClient(async_get_clientsession(hass), username, password)
-    try:
-        await client.login()
-        facilities = await client.get_facilities()
-        if facility_id is not None:
-            facilities = [f for f in facilities if f.facility_id == facility_id]
-        if not facilities:
-            return "no_facilities", []
-        if len(facilities) > 1:
-            return None, facilities
-        await client.get_boiler_state(facilities[0].facility_id)
-    except AuthenticationError:
-        return "invalid_auth", []
-    except FroelingError:
-        return "cloud_cannot_connect", []
-    except Exception:
-        _LOGGER.exception("Unexpected error while logging in to Fröling Connect")
-        return "unknown", []
-    return None, facilities
+def _cloud_error(err: FroelingError) -> str:
+    return "invalid_auth" if isinstance(err, AuthenticationError) else "cloud_cannot_connect"
 
 
 class FroelingConfigFlow(ConfigFlow, domain=DOMAIN):
-    """Set up a Lambdatronic boiler: connection, equipment, optional Fröling Connect."""
+    """Set up a Lambdatronic boiler via Modbus, Fröling Connect or both."""
 
     VERSION = 2
 
     def __init__(self) -> None:
-        self._name = DEFAULT_NAME
-        self._data: dict[str, Any] = {}
-        self._options: dict[str, Any] = {}
-        self._credentials: dict[str, str] = {}
+        self._hybrid = False
+        self._modbus: dict[str, Any] | None = None
+        self._cloud: dict[str, Any] | None = None
+        self._modbus_equipment: Equipment | None = None
+        self._cloud_equipment: Equipment | None = None
+        self._cloud_client: FroelingConnectClient | None = None
         self._facilities: list[Facility] = []
+        self._title = TITLE
 
     @staticmethod
     @callback
     def async_get_options_flow(config_entry: FroelingConfigEntry) -> FroelingOptionsFlow:
-        """Options: equipment and polling intervals."""
+        """Options: the polling intervals of the used sources."""
         return FroelingOptionsFlow()
 
-    async def _async_connection_step(
-        self, step_id: str, schema: probatio.Schema, user_input: dict[str, Any] | None
-    ) -> ConfigFlowResult | None:
-        """Validate host, port and slave; returns a form on error, None on success."""
-        errors: dict[str, str] = {}
-        if user_input is not None:
-            host = user_input[CONF_HOST].strip()
-            port = user_input[CONF_PORT]
-            slave = user_input[CONF_SLAVE]
-            unique_id = f"{host}:{port}:{slave}"
-            await self.async_set_unique_id(unique_id)
-            if self.source != SOURCE_RECONFIGURE or unique_id != self._get_reconfigure_entry().unique_id:
-                self._abort_if_unique_id_configured()
-            try:
-                equipment = await _async_detect(host, port, slave, self._running_client(host, port, slave))
-            except FroelingError as err:
-                errors["base"] = _modbus_error(err)
-            except Exception:
-                _LOGGER.exception("Unexpected error while connecting to %s", host)
-                errors["base"] = "unknown"
-            else:
-                self._data.update(
-                    {
-                        CONF_HOST: host,
-                        CONF_PORT: port,
-                        CONF_SLAVE: slave,
-                        CONF_EQUIPMENT: _equipment_data(equipment),
-                    }
-                )
-                return None
-        return self.async_show_form(
-            step_id=step_id,
-            data_schema=self.add_suggested_values_to_schema(schema, user_input or self._data),
-            errors=errors,
-        )
-
-    def _running_client(self, host: str, port: int, slave: int) -> LambdatronicClient | None:
-        """The client of the entry being reconfigured if it still talks to the same boiler."""
-        if self.source != SOURCE_RECONFIGURE:
-            return None
-        entry: FroelingConfigEntry = self._get_reconfigure_entry()
-        if entry.state is not ConfigEntryState.LOADED or (
-            entry.data[CONF_HOST],
-            entry.data[CONF_PORT],
-            entry.data[CONF_SLAVE],
-        ) != (host, port, slave):
-            return None
-        return entry.runtime_data.modbus
+    # Setup
 
     async def async_step_user(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
-        """Connection to the Modbus TCP gateway."""
-        if (form := await self._async_connection_step("user", USER_SCHEMA, user_input)) is not None:
-            return form
-        assert user_input is not None
-        self._name = user_input[CONF_NAME]
-        return await self.async_step_equipment()
-
-    async def async_step_equipment(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
-        """Confirm the detected equipment."""
-        detected = self._data[CONF_EQUIPMENT]
-        if user_input is not None:
-            self._options = {
-                **_equipment_selection(detected, user_input),
-                CONF_SCAN_INTERVAL: DEFAULT_SCAN_INTERVAL,
-                CONF_PARAMETER_INTERVAL: DEFAULT_PARAMETER_INTERVAL,
-            }
-            return await self.async_step_cloud()
-        return self.async_show_form(step_id="equipment", data_schema=_equipment_schema(detected, detected))
-
-    async def async_step_cloud(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
-        """Optional Fröling Connect login; an empty username means without Connect."""
-        errors: dict[str, str] = {}
-        existing: Mapping[str, Any] = self._data.get(CONF_CLOUD) or {}
-        if user_input is not None:
-            username = user_input.get(CONF_USERNAME, "").strip()
-            password = user_input.get(CONF_PASSWORD, "")
-            if not username:
-                return self._async_finish(None)
-            if not password and username == existing.get(CONF_USERNAME):
-                password = existing[CONF_PASSWORD]
-            self._credentials = {CONF_USERNAME: username, CONF_PASSWORD: password}
-            error, facilities = await _async_check_cloud(self.hass, username, password)
-            if error is not None:
-                errors["base"] = error
-            elif len(facilities) > 1:
-                self._facilities = facilities
-                return await self.async_step_facility()
-            else:
-                return self._async_finish(facilities[0].facility_id)
-        suggested = {CONF_USERNAME: existing[CONF_USERNAME]} if existing else {}
-        return self.async_show_form(
-            step_id="cloud",
-            data_schema=self.add_suggested_values_to_schema(CLOUD_SCHEMA, user_input or suggested),
-            errors=errors,
+        """Choose how the boiler is connected."""
+        return self.async_show_menu(
+            menu_options=[ConnectionType.MODBUS, ConnectionType.CLOUD, ConnectionType.HYBRID]
         )
 
+    async def async_step_hybrid(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
+        """Modbus first, then Fröling Connect."""
+        self._hybrid = True
+        return await self.async_step_modbus()
+
+    async def async_step_modbus(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
+        """Host of the Modbus TCP gateway; port and slave ID in the advanced section."""
+        return await self._async_modbus_step("modbus", user_input)
+
+    async def async_step_cloud(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
+        """Fröling Connect login."""
+        return await self._async_cloud_step("cloud", CLOUD_SCHEMA, user_input)
+
     async def async_step_facility(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
-        """Choose the facility if the Connect account has several."""
+        """Choose the facility if the Fröling Connect account has several."""
         errors: dict[str, str] = {}
         if user_input is not None:
             facility_id = int(user_input[CONF_FACILITY_ID])
-            error, _ = await _async_check_cloud(
-                self.hass, self._credentials[CONF_USERNAME], self._credentials[CONF_PASSWORD], facility_id
-            )
-            if error is None:
-                return self._async_finish(facility_id)
-            errors["base"] = error
+            facility = next(f for f in self._facilities if f.facility_id == facility_id)
+            if (result := await self._async_use_facility(facility, errors)) is not None:
+                return result
         options = [
-            SelectOptionDict(value=str(f.facility_id), label=f.name or str(f.facility_id))
+            SelectOptionDict(
+                value=str(f.facility_id),
+                label=f"{f.name} ({f.product_type})" if f.product_type else f.name or str(f.facility_id),
+            )
             for f in self._facilities
         ]
         return self.async_show_form(
@@ -350,30 +195,255 @@ class FroelingConfigFlow(ConfigFlow, domain=DOMAIN):
             errors=errors,
         )
 
+    async def async_step_mismatch(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
+        """Modbus and Fröling Connect found different components; all of them are used."""
+        if user_input is not None:
+            return self._async_save()
+        assert self._modbus_equipment is not None
+        assert self._cloud_equipment is not None
+        _, deviations = merge_equipment(self._modbus_equipment, self._cloud_equipment)
+        return self.async_show_form(
+            step_id="mismatch",
+            data_schema=probatio.Schema({}),
+            description_placeholders={"components": await self._async_component_names(deviations)},
+        )
+
+    async def _async_modbus_step(self, step_id: str, user_input: dict[str, Any] | None) -> ConfigFlowResult:
+        errors: dict[str, str] = {}
+        if user_input is not None:
+            host = user_input[CONF_HOST].strip()
+            port = user_input[CONF_ADVANCED][CONF_PORT]
+            slave = user_input[CONF_ADVANCED][CONF_SLAVE]
+            await self.async_set_unique_id(f"{host}:{port}:{slave}")
+            if self.source != SOURCE_RECONFIGURE or self.unique_id != self._get_reconfigure_entry().unique_id:
+                self._abort_if_unique_id_configured()
+            try:
+                self._modbus_equipment = await self._async_detect(host, port, slave)
+            except FroelingError as err:
+                errors["base"] = _modbus_error(err)
+            except Exception:
+                _LOGGER.exception("Unexpected error while connecting to %s", host)
+                errors["base"] = "unknown"
+            else:
+                self._modbus = {CONF_HOST: host, CONF_PORT: port, CONF_SLAVE: slave}
+                if self._hybrid and self._cloud is None:
+                    return await self.async_step_cloud()
+                if (result := await self._async_finish(errors)) is not None:
+                    return result
+        suggested = user_input or (
+            {}
+            if self._modbus is None
+            else {
+                CONF_HOST: self._modbus[CONF_HOST],
+                CONF_ADVANCED: {CONF_PORT: self._modbus[CONF_PORT], CONF_SLAVE: self._modbus[CONF_SLAVE]},
+            }
+        )
+        return self.async_show_form(
+            step_id=step_id,
+            data_schema=self.add_suggested_values_to_schema(MODBUS_SCHEMA, suggested),
+            errors=errors,
+        )
+
+    async def _async_cloud_step(
+        self, step_id: str, schema: probatio.Schema, user_input: dict[str, Any] | None
+    ) -> ConfigFlowResult:
+        errors: dict[str, str] = {}
+        stored = self._cloud or {}
+        if user_input is not None:
+            username = user_input[CONF_USERNAME].strip()
+            password = user_input.get(CONF_PASSWORD) or ""
+            if not password and username == stored.get(CONF_USERNAME):
+                password = stored[CONF_PASSWORD]
+            client = FroelingConnectClient(async_get_clientsession(self.hass), username, password)
+            try:
+                await client.login()
+                facilities = await client.get_facilities()
+            except FroelingError as err:
+                errors["base"] = _cloud_error(err)
+            except Exception:
+                _LOGGER.exception("Unexpected error while logging in to Fröling Connect")
+                errors["base"] = "unknown"
+            else:
+                if not facilities:
+                    errors["base"] = "no_facilities"
+                else:
+                    self._cloud_client = client
+                    self._cloud = {CONF_USERNAME: username, CONF_PASSWORD: password}
+                    self._facilities = facilities
+                    if len(facilities) > 1:
+                        return await self.async_step_facility()
+                    if (result := await self._async_use_facility(facilities[0], errors)) is not None:
+                        return result
+        suggested = user_input or ({CONF_USERNAME: stored[CONF_USERNAME]} if stored else {})
+        return self.async_show_form(
+            step_id=step_id,
+            data_schema=self.add_suggested_values_to_schema(schema, suggested),
+            errors=errors,
+        )
+
+    async def _async_use_facility(
+        self, facility: Facility, errors: dict[str, str]
+    ) -> ConfigFlowResult | None:
+        """Read the components of the chosen facility; a form result is returned by the caller on error."""
+        assert self._cloud is not None
+        if self._facility_in_use(facility.facility_id):
+            return self.async_abort(reason="already_configured")
+        if self._modbus is None:
+            await self.async_set_unique_id(f"cloud:{facility.facility_id}")
+        self._cloud[CONF_FACILITY_ID] = facility.facility_id
+        self._cloud_equipment = None
+        self._title = f"{TITLE} {facility.product_type}" if facility.product_type else facility.name or TITLE
+        return await self._async_finish(errors)
+
+    def _facility_in_use(self, facility_id: int) -> bool:
+        """True if another entry already uses this Fröling Connect facility."""
+        own = self._get_reconfigure_entry().entry_id if self.source == SOURCE_RECONFIGURE else None
+        return any(
+            entry.entry_id != own and (entry.data.get(CONF_CLOUD) or {}).get(CONF_FACILITY_ID) == facility_id
+            for entry in self._async_current_entries(include_ignore=False)
+        )
+
+    async def _async_finish(self, errors: dict[str, str]) -> ConfigFlowResult | None:
+        """Detect what is still missing, compare both sources and save; None with `errors` set on failure."""
+        if (error := await self._async_detect_missing()) is not None:
+            errors["base"] = error
+            return None
+        if self._modbus_equipment is not None and self._cloud_equipment is not None:
+            _, deviations = merge_equipment(self._modbus_equipment, self._cloud_equipment)
+            if deviations:
+                return await self.async_step_mismatch()
+        return self._async_save()
+
+    async def _async_detect_missing(self) -> str | None:
+        """Detect the equipment of every configured source not detected in this flow yet."""
+        if self._modbus is not None and self._modbus_equipment is None:
+            try:
+                self._modbus_equipment = await self._async_detect(
+                    self._modbus[CONF_HOST], self._modbus[CONF_PORT], self._modbus[CONF_SLAVE]
+                )
+            except FroelingError as err:
+                return _modbus_error(err)
+        if self._cloud is not None and self._cloud_equipment is None:
+            client = self._cloud_client or FroelingConnectClient(
+                async_get_clientsession(self.hass), self._cloud[CONF_USERNAME], self._cloud[CONF_PASSWORD]
+            )
+            try:
+                components = await client.get_components(self._cloud[CONF_FACILITY_ID])
+            except FroelingError as err:
+                return _cloud_error(err)
+            self._cloud_equipment = equipment_from_components(components)
+        return None
+
+    async def _async_detect(self, host: str, port: int, slave: int) -> Equipment:
+        """Read the system state and detect the equipment.
+
+        The running client of the reconfigured entry is reused for the same boiler: the gateway
+        mixes up answers when two clients talk to it at the same time.
+        """
+        if (running := self._running_client(host, port, slave)) is not None:
+            await running.probe()
+            return await running.detect_equipment()
+        client = LambdatronicClient(host, port, slave)
+        try:
+            await client.connect()
+            await client.probe()
+            return await client.detect_equipment()
+        finally:
+            await client.close()
+
+    def _running_client(self, host: str, port: int, slave: int) -> LambdatronicClient | None:
+        if self.source != SOURCE_RECONFIGURE:
+            return None
+        entry: FroelingConfigEntry = self._get_reconfigure_entry()
+        if entry.state is not ConfigEntryState.LOADED or (
+            entry.data.get(CONF_HOST),
+            entry.data.get(CONF_PORT),
+            entry.data.get(CONF_SLAVE),
+        ) != (host, port, slave):
+            return None
+        return entry.runtime_data.modbus
+
+    async def _async_component_names(self, keys: tuple[str, ...]) -> str:
+        """Names of components ('hc3', 'circulation') as the device names in the user's language."""
+        translations = await async_get_translations(self.hass, self.hass.config.language, "device", [DOMAIN])
+        names: list[str] = []
+        for key in keys:
+            if key == "circulation":
+                kind, number = "circulation_pump", ""
+            else:
+                prefix = key.rstrip("0123456789")
+                kind = {"hc": "heating_circuit", "dhw": "hot_water", "buffer": "buffer"}[prefix]
+                number = f"{int(key[len(prefix) :]):02d}"
+            template = translations.get(f"component.{DOMAIN}.device.{kind}.name", kind)
+            names.append(template.replace("{number}", number))
+        return ", ".join(names)
+
     @callback
-    def _async_finish(self, facility_id: int | None) -> ConfigFlowResult:
-        data = {key: value for key, value in self._data.items() if key != CONF_CLOUD}
-        if facility_id is not None:
-            data[CONF_CLOUD] = {**self._credentials, CONF_FACILITY_ID: facility_id}
+    def _async_save(self) -> ConfigFlowResult:
+        """Create the entry, or update the reconfigured one."""
+        equipment: Equipment | None = None
+        for detected in (self._modbus_equipment, self._cloud_equipment):
+            if detected is not None:
+                equipment = detected if equipment is None else merge_equipment(equipment, detected)[0]
+        assert equipment is not None
+        data: dict[str, Any] = {**(self._modbus or {}), CONF_EQUIPMENT: equipment_data(equipment)}
+        if self._cloud is not None:
+            data[CONF_CLOUD] = dict(self._cloud)
         if self.source == SOURCE_RECONFIGURE:
-            entry: FroelingConfigEntry = self._get_reconfigure_entry()
-            data[CONF_EQUIPMENT], options = _reconfigured_equipment(
-                entry, data[CONF_EQUIPMENT], same_boiler=self.unique_id == entry.unique_id
-            )
             return self.async_update_reload_and_abort(
-                entry, unique_id=self.unique_id, data=data, options=options
+                self._get_reconfigure_entry(), unique_id=self.unique_id, data=data
             )
-        return self.async_create_entry(title=self._name, data=data, options=self._options)
+        return self.async_create_entry(title=self._title, data=data, options=_default_options(data))
+
+    # Reconfigure
 
     async def async_step_reconfigure(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
-        """Change host, port, slave and the Fröling Connect login."""
-        if not self._data:
-            self._data = dict(self._get_reconfigure_entry().data)
-        if (
-            form := await self._async_connection_step("reconfigure", CONNECTION_SCHEMA, user_input)
-        ) is not None:
-            return form
-        return await self.async_step_cloud()
+        """Change or add a connection, or remove one of two."""
+        entry = self._get_reconfigure_entry()
+        if CONF_HOST in entry.data:
+            self._modbus = {key: entry.data[key] for key in (CONF_HOST, CONF_PORT, CONF_SLAVE)}
+        if (cloud := entry.data.get(CONF_CLOUD)) is not None:
+            self._cloud = dict(cloud)
+        await self.async_set_unique_id(entry.unique_id)
+        options = ["reconfigure_modbus", "reconfigure_cloud"]
+        if connection_type(entry.data) is ConnectionType.HYBRID:
+            options += ["remove_cloud", "remove_modbus"]
+        return self.async_show_menu(step_id="reconfigure", menu_options=options)
+
+    async def async_step_reconfigure_modbus(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        """Change or add the Modbus connection."""
+        return await self._async_modbus_step("reconfigure_modbus", user_input)
+
+    async def async_step_reconfigure_cloud(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        """Add Fröling Connect or change its login."""
+        return await self._async_cloud_step("reconfigure_cloud", RECONFIGURE_CLOUD_SCHEMA, user_input)
+
+    async def async_step_remove_cloud(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
+        """Use Modbus only."""
+        errors: dict[str, str] = {}
+        if user_input is not None:
+            self._cloud = None
+            if (result := await self._async_finish(errors)) is not None:
+                return result
+        return self.async_show_form(step_id="remove_cloud", data_schema=probatio.Schema({}), errors=errors)
+
+    async def async_step_remove_modbus(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
+        """Use Fröling Connect only."""
+        errors: dict[str, str] = {}
+        if user_input is not None:
+            assert self._cloud is not None
+            await self.async_set_unique_id(f"cloud:{self._cloud[CONF_FACILITY_ID]}")
+            self._abort_if_unique_id_configured()
+            self._modbus = None
+            if (result := await self._async_finish(errors)) is not None:
+                return result
+        return self.async_show_form(step_id="remove_modbus", data_schema=probatio.Schema({}), errors=errors)
+
+    # Reauthentication
 
     async def async_step_reauth(self, entry_data: Mapping[str, Any]) -> ConfigFlowResult:
         """Fröling Connect rejected the stored login."""
@@ -386,54 +456,70 @@ class FroelingConfigFlow(ConfigFlow, domain=DOMAIN):
         errors: dict[str, str] = {}
         if user_input is not None:
             username = user_input[CONF_USERNAME].strip()
-            error, _ = await _async_check_cloud(
-                self.hass, username, user_input[CONF_PASSWORD], cloud[CONF_FACILITY_ID]
+            client = FroelingConnectClient(
+                async_get_clientsession(self.hass), username, user_input[CONF_PASSWORD]
             )
-            if error is None:
-                return self.async_update_reload_and_abort(
-                    entry,
-                    data_updates={
-                        CONF_CLOUD: {
-                            CONF_USERNAME: username,
-                            CONF_PASSWORD: user_input[CONF_PASSWORD],
-                            CONF_FACILITY_ID: cloud[CONF_FACILITY_ID],
-                        }
-                    },
-                )
-            errors["base"] = error
+            try:
+                await client.login()
+                facilities = await client.get_facilities()
+            except FroelingError as err:
+                errors["base"] = _cloud_error(err)
+            except Exception:
+                _LOGGER.exception("Unexpected error while logging in to Fröling Connect")
+                errors["base"] = "unknown"
+            else:
+                if all(f.facility_id != cloud[CONF_FACILITY_ID] for f in facilities):
+                    errors["base"] = "facility_missing"
+                else:
+                    return self.async_update_reload_and_abort(
+                        entry,
+                        data_updates={
+                            CONF_CLOUD: {
+                                CONF_USERNAME: username,
+                                CONF_PASSWORD: user_input[CONF_PASSWORD],
+                                CONF_FACILITY_ID: cloud[CONF_FACILITY_ID],
+                            }
+                        },
+                    )
         return self.async_show_form(
             step_id="reauth_confirm",
             data_schema=self.add_suggested_values_to_schema(
-                REAUTH_SCHEMA, {CONF_USERNAME: cloud[CONF_USERNAME]}
+                CLOUD_SCHEMA, {CONF_USERNAME: cloud[CONF_USERNAME]}
             ),
             errors=errors,
         )
 
 
+def _default_options(data: Mapping[str, Any]) -> dict[str, int]:
+    """Default intervals of the sources the entry uses."""
+    options: dict[str, int] = {}
+    if CONF_HOST in data:
+        options[CONF_SCAN_INTERVAL] = DEFAULT_SCAN_INTERVAL
+        options[CONF_PARAMETER_INTERVAL] = DEFAULT_PARAMETER_INTERVAL
+    if CONF_CLOUD in data:
+        options[CONF_CLOUD_INTERVAL] = DEFAULT_CLOUD_INTERVAL
+    return options
+
+
 class FroelingOptionsFlow(OptionsFlowWithReload):
-    """Enable or disable components and change the polling intervals."""
+    """Polling intervals of the sources the entry uses."""
 
     async def async_step_init(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
-        """Show the options."""
-        detected = self.config_entry.data[CONF_EQUIPMENT]
+        """Show the intervals."""
         if user_input is not None:
-            return self.async_create_entry(
-                data={
-                    **_equipment_selection(detected, user_input),
-                    CONF_SCAN_INTERVAL: user_input[CONF_SCAN_INTERVAL],
-                    CONF_PARAMETER_INTERVAL: user_input[CONF_PARAMETER_INTERVAL],
-                }
+            return self.async_create_entry(data=user_input)
+        fields: dict[probatio.Marker, Any] = {}
+        if CONF_HOST in self.config_entry.data:
+            fields[probatio.Required(CONF_SCAN_INTERVAL)] = _box(MIN_SCAN_INTERVAL, MAX_SCAN_INTERVAL, "s")
+            fields[probatio.Required(CONF_PARAMETER_INTERVAL)] = _box(
+                MIN_PARAMETER_INTERVAL, MAX_PARAMETER_INTERVAL, "min"
             )
-        options = self.config_entry.options
-        schema = _equipment_schema(detected, options).extend(
-            {
-                probatio.Required(
-                    CONF_SCAN_INTERVAL, default=options.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL)
-                ): _box(MIN_SCAN_INTERVAL, MAX_SCAN_INTERVAL, "s"),
-                probatio.Required(
-                    CONF_PARAMETER_INTERVAL,
-                    default=options.get(CONF_PARAMETER_INTERVAL, DEFAULT_PARAMETER_INTERVAL),
-                ): _box(MIN_PARAMETER_INTERVAL, MAX_PARAMETER_INTERVAL, "min"),
-            }
+        if CONF_CLOUD in self.config_entry.data:
+            fields[probatio.Required(CONF_CLOUD_INTERVAL)] = _box(
+                MIN_CLOUD_INTERVAL, MAX_CLOUD_INTERVAL, "min"
+            )
+        suggested = {**_default_options(self.config_entry.data), **self.config_entry.options}
+        return self.async_show_form(
+            step_id="init",
+            data_schema=self.add_suggested_values_to_schema(probatio.Schema(fields), suggested),
         )
-        return self.async_show_form(step_id="init", data_schema=schema)

@@ -2,45 +2,52 @@
   "config": {
     "step": {
       "user": {
+        "title": "Connection",
+        "description": "How is the boiler connected to Home Assistant?",
+        "menu_options": {
+          "modbus": "Modbus (local)",
+          "cloud": "Fröling Connect (cloud)",
+          "hybrid": "Modbus and Fröling Connect"
+        },
+        "menu_option_descriptions": {
+          "modbus": "Reads and writes locally via a Modbus TCP gateway, independent of the internet.",
+          "cloud": "Uses the Fröling Connect account. Changing settings needs 'Fernschalten über connect möglich'.",
+          "hybrid": "Modbus for every value it has; Fröling Connect adds the rest (operating modes, schedules, system information)."
+        }
+      },
+      "modbus": {
         "title": "Modbus TCP gateway",
         "description": "The boiler (Lambdatronic 3200, COM2) is connected via a Modbus TCP gateway. 'MODBUS-Protokoll 2014' must be enabled at the boiler.",
         "data": {
-          "host": "Host",
-          "port": "Port",
-          "slave": "Slave ID",
-          "name": "Name"
+          "host": "Host"
         },
         "data_description": {
-          "host": "IP address or host name of the Modbus TCP gateway.",
-          "port": "TCP port of the gateway, usually 502.",
-          "slave": "Modbus address set at the boiler (service menu, usually 2).",
-          "name": "Name of the boiler device in Home Assistant."
-        }
-      },
-      "equipment": {
-        "title": "Equipment",
-        "description": "These components were detected. Components without a sensor report 0 and are not listed.",
-        "data": {
-          "heating_circuits": "Heating circuits",
-          "hot_water": "Hot water tanks",
-          "buffers": "Buffer tanks"
+          "host": "IP address or host name of the Modbus TCP gateway."
         },
-        "data_description": {
-          "heating_circuits": "Detected numbers; untick components you do not want in Home Assistant.",
-          "hot_water": "Detected numbers; untick components you do not want in Home Assistant.",
-          "buffers": "Detected numbers; untick components you do not want in Home Assistant."
+        "sections": {
+          "advanced": {
+            "name": "Advanced",
+            "data": {
+              "port": "Port",
+              "slave": "Slave ID"
+            },
+            "data_description": {
+              "port": "TCP port of the gateway, usually 502.",
+              "slave": "Modbus address set at the boiler (service menu, usually 2)."
+            }
+          }
         }
       },
       "cloud": {
         "title": "Fröling Connect",
-        "description": "Optional: the system operating mode (automatic, domestic hot water, continuous load) can only be switched via Fröling Connect.",
+        "description": "Log in with your Fröling Connect account.",
         "data": {
-          "username": "Fröling Connect username",
+          "username": "Email",
           "password": "Password"
         },
         "data_description": {
-          "username": "Leave empty to use the integration without Fröling Connect.",
-          "password": "When changing other settings, leave empty to keep the stored password."
+          "username": "Email address of the Fröling Connect account.",
+          "password": "Password of the Fröling Connect account."
         }
       },
       "facility": {
@@ -52,24 +59,67 @@
           "facility_id": "Facility of the Fröling Connect account that belongs to this boiler."
         }
       },
+      "mismatch": {
+        "title": "Different components",
+        "description": "Modbus and Fröling Connect do not report the same components: {components}. All components found are set up; disable unwanted devices in Home Assistant."
+      },
       "reconfigure": {
+        "title": "Reconfigure",
+        "menu_options": {
+          "reconfigure_modbus": "Change or add the Modbus connection",
+          "reconfigure_cloud": "Add Fröling Connect or change the login",
+          "remove_cloud": "Remove Fröling Connect",
+          "remove_modbus": "Remove Modbus"
+        }
+      },
+      "reconfigure_modbus": {
         "title": "Modbus TCP gateway",
+        "description": "The boiler (Lambdatronic 3200, COM2) is connected via a Modbus TCP gateway. 'MODBUS-Protokoll 2014' must be enabled at the boiler.",
         "data": {
-          "host": "Host",
-          "port": "Port",
-          "slave": "Slave ID"
+          "host": "Host"
         },
         "data_description": {
-          "host": "IP address or host name of the Modbus TCP gateway.",
-          "port": "TCP port of the gateway, usually 502.",
-          "slave": "Modbus address set at the boiler (service menu, usually 2)."
+          "host": "IP address or host name of the Modbus TCP gateway."
+        },
+        "sections": {
+          "advanced": {
+            "name": "Advanced",
+            "data": {
+              "port": "Port",
+              "slave": "Slave ID"
+            },
+            "data_description": {
+              "port": "TCP port of the gateway, usually 502.",
+              "slave": "Modbus address set at the boiler (service menu, usually 2)."
+            }
+          }
         }
+      },
+      "reconfigure_cloud": {
+        "title": "Fröling Connect",
+        "description": "Log in with your Fröling Connect account.",
+        "data": {
+          "username": "Email",
+          "password": "Password"
+        },
+        "data_description": {
+          "username": "Email address of the Fröling Connect account.",
+          "password": "Leave empty to keep the stored password (same account)."
+        }
+      },
+      "remove_cloud": {
+        "title": "Remove Fröling Connect",
+        "description": "The integration then uses Modbus only. Values that only Fröling Connect provides disappear."
+      },
+      "remove_modbus": {
+        "title": "Remove Modbus",
+        "description": "The integration then uses Fröling Connect only. Values that only Modbus provides disappear."
       },
       "reauth_confirm": {
         "title": "Fröling Connect login",
         "description": "Fröling Connect rejected the stored login. Enter the current credentials.",
         "data": {
-          "username": "Fröling Connect username",
+          "username": "Email",
           "password": "Password"
         },
         "data_description": {
@@ -85,7 +135,8 @@
       "unknown": "Unexpected error.",
       "invalid_auth": "Fröling Connect rejected the login.",
       "cloud_cannot_connect": "Cannot reach Fröling Connect.",
-      "no_facilities": "No facility found in this Fröling Connect account."
+      "no_facilities": "No facility found in this Fröling Connect account.",
+      "facility_missing": "The facility of this entry is not part of this Fröling Connect account."
     },
     "abort": {
       "already_configured": "This boiler is already configured.",
@@ -98,18 +149,14 @@
       "init": {
         "title": "Options",
         "data": {
-          "heating_circuits": "Heating circuits",
-          "hot_water": "Hot water tanks",
-          "buffers": "Buffer tanks",
           "scan_interval": "Value interval",
-          "parameter_interval": "Parameter interval"
+          "parameter_interval": "Parameter interval",
+          "cloud_interval": "Fröling Connect interval"
         },
         "data_description": {
-          "heating_circuits": "Detected numbers; untick components you do not want in Home Assistant.",
-          "hot_water": "Detected numbers; untick components you do not want in Home Assistant.",
-          "buffers": "Detected numbers; untick components you do not want in Home Assistant.",
-          "scan_interval": "How often the current values are read (10-300 s).",
-          "parameter_interval": "How often the settings are read (1-60 min). They are also read after every change."
+          "scan_interval": "How often the current values are read via Modbus (10-300 s).",
+          "parameter_interval": "How often the settings are read via Modbus (1-60 min). They are also read after every change.",
+          "cloud_interval": "How often Fröling Connect is read (1-60 min). Short intervals may hit the rate limit of Fröling Connect."
         }
       }
     }

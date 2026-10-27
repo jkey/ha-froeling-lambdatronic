@@ -9,7 +9,6 @@ from homeassistant.const import CONF_HOST
 
 DOMAIN: Final = "froeling_lambdatronic"
 
-DEFAULT_NAME: Final = "Fröling PE1"
 DEFAULT_PORT: Final = 502
 DEFAULT_SLAVE: Final = 2
 

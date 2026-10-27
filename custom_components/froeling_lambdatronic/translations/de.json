@@ -2,45 +2,52 @@
   "config": {
     "step": {
       "user": {
-        "title": "Modbus-TCP-Gateway",
-        "description": "Der Kessel (Lambdatronic 3200, COM2) hängt an einem Modbus-TCP-Gateway. Am Kessel muss „MODBUS-Protokoll 2014“ eingeschaltet sein.",
-        "data": {
-          "host": "Host",
-          "port": "Port",
-          "slave": "Slave-ID",
-          "name": "Name"
+        "title": "Verbindung",
+        "description": "Wie ist der Kessel mit Home Assistant verbunden?",
+        "menu_options": {
+          "modbus": "Modbus (lokal)",
+          "cloud": "Fröling Connect (Cloud)",
+          "hybrid": "Modbus und Fröling Connect"
         },
-        "data_description": {
-          "host": "IP-Adresse oder Hostname des Modbus-TCP-Gateways.",
-          "port": "TCP-Port des Gateways, meist 502.",
-          "slave": "Am Kessel eingestellte Modbus-Adresse (Servicemenü, meist 2).",
-          "name": "Name des Kessel-Geräts in Home Assistant."
+        "menu_option_descriptions": {
+          "modbus": "Liest und schreibt lokal über ein Modbus-TCP-Gateway, unabhängig vom Internet.",
+          "cloud": "Nutzt das Fröling-Connect-Konto. Zum Ändern von Einstellungen muss „Fernschalten über connect möglich“ an sein.",
+          "hybrid": "Modbus für alle Werte, die es kennt; Fröling Connect ergänzt den Rest (Betriebsarten, Zeitpläne, Systeminformationen)."
         }
       },
-      "equipment": {
-        "title": "Ausstattung",
-        "description": "Diese Komponenten wurden erkannt. Komponenten ohne Fühler liefern 0 und fehlen hier.",
+      "modbus": {
+        "title": "Modbus-TCP-Gateway",
+        "description": "Der Kessel (Lambdatronic 3200, COM2) ist über ein Modbus-TCP-Gateway angebunden. Am Kessel muss „MODBUS-Protokoll 2014“ eingeschaltet sein.",
         "data": {
-          "heating_circuits": "Heizkreise",
-          "hot_water": "Warmwasserspeicher",
-          "buffers": "Pufferspeicher"
+          "host": "Host"
         },
         "data_description": {
-          "heating_circuits": "Erkannte Nummern; abwählen, was nicht in Home Assistant erscheinen soll.",
-          "hot_water": "Erkannte Nummern; abwählen, was nicht in Home Assistant erscheinen soll.",
-          "buffers": "Erkannte Nummern; abwählen, was nicht in Home Assistant erscheinen soll."
+          "host": "IP-Adresse oder Hostname des Modbus-TCP-Gateways."
+        },
+        "sections": {
+          "advanced": {
+            "name": "Erweitert",
+            "data": {
+              "port": "Port",
+              "slave": "Slave-ID"
+            },
+            "data_description": {
+              "port": "TCP-Port des Gateways, meist 502.",
+              "slave": "Am Kessel eingestellte Modbus-Adresse (Servicemenü, meist 2)."
+            }
+          }
         }
       },
       "cloud": {
         "title": "Fröling Connect",
-        "description": "Optional: Die Anlagen-Betriebsart (Automatik, Brauchwasser, Dauerlast) lässt sich nur über Fröling Connect umschalten.",
+        "description": "Mit dem Fröling-Connect-Konto anmelden.",
         "data": {
-          "username": "Fröling-Connect-Benutzername",
+          "username": "E-Mail",
           "password": "Passwort"
         },
         "data_description": {
-          "username": "Leer lassen, um die Integration ohne Fröling Connect zu nutzen.",
-          "password": "Beim Ändern anderer Einstellungen leer lassen, um das gespeicherte Passwort zu behalten."
+          "username": "E-Mail-Adresse des Fröling-Connect-Kontos.",
+          "password": "Passwort des Fröling-Connect-Kontos."
         }
       },
       "facility": {
@@ -49,27 +56,70 @@
           "facility_id": "Anlage"
         },
         "data_description": {
-          "facility_id": "Anlage im Fröling-Connect-Konto, die zu diesem Kessel gehört."
+          "facility_id": "Anlage des Fröling-Connect-Kontos, die zu diesem Kessel gehört."
         }
       },
+      "mismatch": {
+        "title": "Unterschiedliche Komponenten",
+        "description": "Modbus und Fröling Connect melden nicht dieselben Komponenten: {components}. Alle gefundenen Komponenten werden eingerichtet; nicht gewünschte Geräte in Home Assistant deaktivieren."
+      },
       "reconfigure": {
+        "title": "Neu konfigurieren",
+        "menu_options": {
+          "reconfigure_modbus": "Modbus-Verbindung ändern oder hinzufügen",
+          "reconfigure_cloud": "Fröling Connect hinzufügen oder Anmeldung ändern",
+          "remove_cloud": "Fröling Connect entfernen",
+          "remove_modbus": "Modbus entfernen"
+        }
+      },
+      "reconfigure_modbus": {
         "title": "Modbus-TCP-Gateway",
+        "description": "Der Kessel (Lambdatronic 3200, COM2) ist über ein Modbus-TCP-Gateway angebunden. Am Kessel muss „MODBUS-Protokoll 2014“ eingeschaltet sein.",
         "data": {
-          "host": "Host",
-          "port": "Port",
-          "slave": "Slave-ID"
+          "host": "Host"
         },
         "data_description": {
-          "host": "IP-Adresse oder Hostname des Modbus-TCP-Gateways.",
-          "port": "TCP-Port des Gateways, meist 502.",
-          "slave": "Am Kessel eingestellte Modbus-Adresse (Servicemenü, meist 2)."
+          "host": "IP-Adresse oder Hostname des Modbus-TCP-Gateways."
+        },
+        "sections": {
+          "advanced": {
+            "name": "Erweitert",
+            "data": {
+              "port": "Port",
+              "slave": "Slave-ID"
+            },
+            "data_description": {
+              "port": "TCP-Port des Gateways, meist 502.",
+              "slave": "Am Kessel eingestellte Modbus-Adresse (Servicemenü, meist 2)."
+            }
+          }
         }
+      },
+      "reconfigure_cloud": {
+        "title": "Fröling Connect",
+        "description": "Mit dem Fröling-Connect-Konto anmelden.",
+        "data": {
+          "username": "E-Mail",
+          "password": "Passwort"
+        },
+        "data_description": {
+          "username": "E-Mail-Adresse des Fröling-Connect-Kontos.",
+          "password": "Leer lassen, um das gespeicherte Passwort zu behalten (gleiches Konto)."
+        }
+      },
+      "remove_cloud": {
+        "title": "Fröling Connect entfernen",
+        "description": "Die Integration nutzt danach nur noch Modbus. Werte, die nur Fröling Connect liefert, entfallen."
+      },
+      "remove_modbus": {
+        "title": "Modbus entfernen",
+        "description": "Die Integration nutzt danach nur noch Fröling Connect. Werte, die nur Modbus liefert, entfallen."
       },
       "reauth_confirm": {
         "title": "Fröling-Connect-Anmeldung",
         "description": "Fröling Connect hat die gespeicherte Anmeldung abgelehnt. Aktuelle Zugangsdaten eingeben.",
         "data": {
-          "username": "Fröling-Connect-Benutzername",
+          "username": "E-Mail",
           "password": "Passwort"
         },
         "data_description": {
@@ -85,7 +135,8 @@
       "unknown": "Unerwarteter Fehler.",
       "invalid_auth": "Fröling Connect hat die Anmeldung abgelehnt.",
       "cloud_cannot_connect": "Fröling Connect ist nicht erreichbar.",
-      "no_facilities": "In diesem Fröling-Connect-Konto wurde keine Anlage gefunden."
+      "no_facilities": "In diesem Fröling-Connect-Konto wurde keine Anlage gefunden.",
+      "facility_missing": "Die Anlage dieses Eintrags gehört nicht zu diesem Fröling-Connect-Konto."
     },
     "abort": {
       "already_configured": "Dieser Kessel ist bereits eingerichtet.",
@@ -98,18 +149,14 @@
       "init": {
         "title": "Optionen",
         "data": {
-          "heating_circuits": "Heizkreise",
-          "hot_water": "Warmwasserspeicher",
-          "buffers": "Pufferspeicher",
           "scan_interval": "Werte-Takt",
-          "parameter_interval": "Parameter-Takt"
+          "parameter_interval": "Parameter-Takt",
+          "cloud_interval": "Fröling-Connect-Takt"
         },
         "data_description": {
-          "heating_circuits": "Erkannte Nummern; abwählen, was nicht in Home Assistant erscheinen soll.",
-          "hot_water": "Erkannte Nummern; abwählen, was nicht in Home Assistant erscheinen soll.",
-          "buffers": "Erkannte Nummern; abwählen, was nicht in Home Assistant erscheinen soll.",
-          "scan_interval": "Wie oft die aktuellen Werte gelesen werden (10–300 s).",
-          "parameter_interval": "Wie oft die Einstellungen gelesen werden (1–60 min). Nach jeder Änderung zusätzlich sofort."
+          "scan_interval": "Wie oft die aktuellen Werte per Modbus gelesen werden (10–300 s).",
+          "parameter_interval": "Wie oft die Einstellungen per Modbus gelesen werden (1–60 min). Nach jeder Änderung zusätzlich sofort.",
+          "cloud_interval": "Wie oft Fröling Connect abgefragt wird (1–60 min). Kurze Takte können die Drosselung von Fröling Connect auslösen."
         }
       }
     }
