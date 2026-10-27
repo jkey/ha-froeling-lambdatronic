@@ -10,7 +10,6 @@ from froeling_lambdatronic import (
     ConnectionFailedError,
     OperatingMode,
     RemoteControlDisabledError,
-    heating_circuit,
 )
 from homeassistant.components.select import ATTR_OPTION, SERVICE_SELECT_OPTION
 from homeassistant.components.select import DOMAIN as SELECT_DOMAIN
@@ -23,13 +22,12 @@ from homeassistant.helpers import issue_registry as ir
 from pytest_homeassistant_custom_component.common import MockConfigEntry, snapshot_platform
 from syrupy.assertion import SnapshotAssertion
 
-from custom_components.froeling_lambdatronic.const import DOMAIN
+from custom_components.froeling_lambdatronic.const import DOMAIN, ConnectionType
 
 from . import setup_integration
-from .const import FACILITY_ID, PARAMETERS, VALUES
+from .const import FACILITY_ID, VALUES
 
 SYSTEM_MODE = "select.froling_pe1_system_operating_mode"
-HC1_MODE = "select.froling_pe1_heating_circuit_01_operating_mode"
 
 
 @pytest.fixture(autouse=True)
@@ -39,6 +37,8 @@ def only_selects() -> object:
         yield
 
 
+# Without Fröling Connect the system operating mode cannot be switched (test below).
+@pytest.mark.parametrize("any_config_entry", [ConnectionType.CLOUD, ConnectionType.HYBRID], indirect=True)
 @pytest.mark.usefixtures("mock_client", "mock_cloud")
 async def test_entities(
     hass: HomeAssistant,
@@ -64,32 +64,6 @@ async def test_no_system_mode_without_cloud(
     """Without Fröling Connect there is no system operating mode select."""
     await setup_integration(hass, mock_config_entry_modbus)
     assert hass.states.get(SYSTEM_MODE) is None
-    assert hass.states.get(HC1_MODE) is not None
-
-
-async def test_heating_circuit_mode(
-    hass: HomeAssistant, mock_client: MagicMock, mock_config_entry_modbus: MockConfigEntry
-) -> None:
-    """The heating circuit mode is written via Modbus."""
-    await setup_integration(hass, mock_config_entry_modbus)
-
-    await _select(hass, HC1_MODE, "party")
-
-    mock_client.write.assert_awaited_once_with(heating_circuit(1).operating_mode, 5.0)
-
-
-async def test_heating_circuit_mode_unknown(
-    hass: HomeAssistant, mock_client: MagicMock, mock_config_entry_modbus: MockConfigEntry
-) -> None:
-    """An unknown mode read from the boiler is shown as unknown."""
-    hc1 = replace(PARAMETERS.heating_circuits[1], operating_mode=None)
-    mock_client.read_parameters.return_value = replace(
-        PARAMETERS, heating_circuits={**PARAMETERS.heating_circuits, 1: hc1}
-    )
-    await setup_integration(hass, mock_config_entry_modbus)
-    state = hass.states.get(HC1_MODE)
-    assert state is not None
-    assert state.state == STATE_UNKNOWN
 
 
 async def test_system_mode(

@@ -205,17 +205,6 @@
       }
     },
     "select": {
-      "heating_circuit_mode": {
-        "name": "Operating mode",
-        "state": {
-          "off": "Off",
-          "automatic": "Automatic",
-          "extra_heating": "Extra heating",
-          "setback": "Setback",
-          "permanent_setback": "Permanent setback",
-          "party": "Party"
-        }
-      },
       "system_operating_mode": {
         "name": "System operating mode",
         "state": {
@@ -458,6 +447,21 @@
       },
       "pellet_filling_start_2": {
         "name": "2nd pellet filling"
+      }
+    },
+    "climate": {
+      "heating_circuit": {
+        "state_attributes": {
+          "preset_mode": {
+            "state": {
+              "automatic": "Automatic",
+              "extra_heating": "Extra heating",
+              "setback": "Setback",
+              "permanent_setback": "Permanent setback",
+              "party": "Party"
+            }
+          }
+        }
       }
     }
   },

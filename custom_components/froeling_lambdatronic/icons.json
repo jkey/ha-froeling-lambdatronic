@@ -67,16 +67,6 @@
       }
     },
     "select": {
-      "heating_circuit_mode": {
-        "default": "mdi:radiator",
-        "state": {
-          "off": "mdi:radiator-off",
-          "extra_heating": "mdi:fire",
-          "setback": "mdi:weather-night",
-          "permanent_setback": "mdi:weather-night",
-          "party": "mdi:party-popper"
-        }
-      },
       "system_operating_mode": {
         "default": "mdi:cog",
         "state": {
@@ -162,6 +152,22 @@
       },
       "pellet_filling_start_2": {
         "default": "mdi:truck-delivery-outline"
+      }
+    },
+    "climate": {
+      "heating_circuit": {
+        "state_attributes": {
+          "preset_mode": {
+            "default": "mdi:radiator",
+            "state": {
+              "automatic": "mdi:home-thermometer",
+              "extra_heating": "mdi:fire",
+              "setback": "mdi:weather-night",
+              "permanent_setback": "mdi:weather-night",
+              "party": "mdi:party-popper"
+            }
+          }
+        }
       }
     }
   }

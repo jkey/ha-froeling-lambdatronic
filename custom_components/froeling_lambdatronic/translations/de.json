@@ -205,17 +205,6 @@
       }
     },
     "select": {
-      "heating_circuit_mode": {
-        "name": "Betriebsart",
-        "state": {
-          "off": "Aus",
-          "automatic": "Automatik",
-          "extra_heating": "Extraheizen",
-          "setback": "Absenken",
-          "permanent_setback": "Dauerabsenken",
-          "party": "Partybetrieb"
-        }
-      },
       "system_operating_mode": {
         "name": "Anlagen-Betriebsart",
         "state": {
@@ -458,6 +447,21 @@
       },
       "pellet_filling_start_2": {
         "name": "2. Pelletbefüllung"
+      }
+    },
+    "climate": {
+      "heating_circuit": {
+        "state_attributes": {
+          "preset_mode": {
+            "state": {
+              "automatic": "Automatik",
+              "extra_heating": "Extraheizen",
+              "setback": "Absenken",
+              "permanent_setback": "Dauerabsenken",
+              "party": "Party"
+            }
+          }
+        }
       }
     }
   },

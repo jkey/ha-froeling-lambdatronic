@@ -11,9 +11,11 @@ from froeling_lambdatronic import (
     FroelingConnectClient,
     FroelingError,
     LambdatronicClient,
+    Phase,
     ProtocolNotEnabledError,
     RemoteControlDisabledError,
     ValueOutOfRangeError,
+    Weekday,
     WriteRejectedError,
     cloud_ref,
     component_key,
@@ -140,6 +142,11 @@ class FroelingSources:
             cached = (data, data.flat())
             self._flat_cache[source] = cached
         return cached[1]
+
+    def schedule(self, component_key: str) -> Mapping[Weekday, tuple[Phase, ...]] | None:
+        """Weekly schedule of a component ('hc1') from the last cloud update; None if unknown."""
+        data = None if self._cloud is None else self._cloud.data
+        return None if data is None else data.snapshot.schedules.get(component_key)
 
     def cloud_limits(self, key: str) -> tuple[float | None, float | None] | None:
         """Minimum and maximum of the cloud parameter of a key in library units; None if not read."""

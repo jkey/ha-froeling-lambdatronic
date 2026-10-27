@@ -1,14 +1,15 @@
 """Tests for the translation files."""
 
 import json
+from collections.abc import Iterable
 from pathlib import Path
 from typing import Any
 
 import pytest
 
+from custom_components.froeling_lambdatronic.climate import PRESETS
 from custom_components.froeling_lambdatronic.const import (
     BOILER_STATE_KEYS,
-    HEATING_CIRCUIT_MODE_KEYS,
     OPERATING_MODE_KEYS,
     SYSTEM_STATE_KEYS,
 )
@@ -38,16 +39,19 @@ def test_german_has_same_keys() -> None:
 
 
 @pytest.mark.parametrize(
-    ("platform", "translation_key", "keys"),
+    ("path", "keys"),
     [
-        ("sensor", "system_state", SYSTEM_STATE_KEYS),
-        ("sensor", "boiler_state", BOILER_STATE_KEYS),
-        ("select", "heating_circuit_mode", HEATING_CIRCUIT_MODE_KEYS),
-        ("select", "system_operating_mode", OPERATING_MODE_KEYS),
+        ("sensor/system_state/state", SYSTEM_STATE_KEYS.values()),
+        ("sensor/boiler_state/state", BOILER_STATE_KEYS.values()),
+        ("select/system_operating_mode/state", OPERATING_MODE_KEYS.values()),
+        ("climate/heating_circuit/state_attributes/preset_mode/state", PRESETS.values()),
     ],
 )
-def test_state_translations(platform: str, translation_key: str, keys: dict[int, str]) -> None:
-    """Every state key of an enum entity has a translation."""
-    states = _load("strings.json")["entity"][platform][translation_key]["state"]
-    assert set(states) == set(keys.values())
-    assert len(set(keys.values())) == len(keys)
+def test_state_translations(path: str, keys: Iterable[str]) -> None:
+    """Every state of an enum entity or preset has a translation."""
+    states: Any = _load("strings.json")["entity"]
+    for part in path.split("/"):
+        states = states[part]
+    keys = list(keys)
+    assert set(states) == set(keys)
+    assert len(set(keys)) == len(keys)

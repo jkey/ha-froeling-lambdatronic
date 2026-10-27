@@ -4,18 +4,12 @@ from homeassistant.components.select import SelectEntity, SelectEntityDescriptio
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
-from .const import HEATING_CIRCUIT_MODE_KEYS, OPERATING_MODE_KEYS
+from .const import OPERATING_MODE_KEYS
 from .coordinator import FroelingConfigEntry
-from .entity import BOILER_COMPONENT, Component, ComponentKind, FroelingWritableEntity
+from .entity import BOILER_COMPONENT, Component, FroelingWritableEntity
 from .sources import FroelingSources, Source
 
 PARALLEL_UPDATES = 1
-
-HEATING_CIRCUIT_MODE = SelectEntityDescription(
-    key="operating_mode",
-    translation_key="heating_circuit_mode",
-    options=list(HEATING_CIRCUIT_MODE_KEYS.values()),
-)
 
 # Shown from 34001 (Modbus) or 'mode2' (cloud), switched via Fröling Connect.
 SYSTEM_MODE = SelectEntityDescription(
@@ -30,25 +24,21 @@ async def async_setup_entry(
     entry: FroelingConfigEntry,
     async_add_entities: AddConfigEntryEntitiesCallback,
 ) -> None:
-    """Set up the select entities that can be read and written."""
-    data = entry.runtime_data
-    sources = data.sources
-    candidates = [
-        (
-            Component(ComponentKind.HEATING_CIRCUIT, n),
-            HEATING_CIRCUIT_MODE,
-            "operating_mode",
-            HEATING_CIRCUIT_MODE_KEYS,
+    """Set up the system operating mode if it can be read and written."""
+    sources = entry.runtime_data.sources
+    if (source := sources.source("system_state")) is not None and sources.writable("system_state"):
+        async_add_entities(
+            [
+                FroelingSelect(
+                    sources,
+                    BOILER_COMPONENT,
+                    SYSTEM_MODE,
+                    source,
+                    value_key="system_state",
+                    options=OPERATING_MODE_KEYS,
+                )
+            ]
         )
-        for n in data.equipment.heating_circuits
-    ]
-    candidates.append((BOILER_COMPONENT, SYSTEM_MODE, "system_state", OPERATING_MODE_KEYS))
-    async_add_entities(
-        FroelingSelect(sources, component, description, source, value_key=key, options=options)
-        for component, description, suffix, options in candidates
-        if (source := sources.source(key := component.key_prefix + suffix)) is not None
-        and sources.writable(key)
-    )
 
 
 class FroelingSelect(FroelingWritableEntity, SelectEntity):
