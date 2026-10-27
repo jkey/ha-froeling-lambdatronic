@@ -149,6 +149,12 @@
     "button": {
       "refresh_parameters": {
         "name": "Read parameters"
+      },
+      "reset_ash_counter": {
+        "name": "Reset ash counter"
+      },
+      "reset_pellet_counter": {
+        "name": "Reset pellet counter"
       }
     },
     "number": {
@@ -181,6 +187,21 @@
       },
       "recharge_below": {
         "name": "Recharge below"
+      },
+      "frost_protection": {
+        "name": "Frost protection"
+      },
+      "pump_off_below_flow_setpoint": {
+        "name": "Pump off below flow setpoint"
+      },
+      "buffer_overheat_protection": {
+        "name": "Overheat protection from buffer top"
+      },
+      "circuit_release": {
+        "name": "Heating circuit release from"
+      },
+      "pump_off_above": {
+        "name": "Pump off above return temperature"
       }
     },
     "select": {
@@ -421,6 +442,22 @@
       },
       "ignition_below_buffer_temperature": {
         "name": "Ignition below buffer temperature"
+      }
+    },
+    "switch": {
+      "boiler_on": {
+        "name": "Boiler"
+      },
+      "auto_feeder": {
+        "name": "Automatic feed"
+      }
+    },
+    "time": {
+      "pellet_filling_start_1": {
+        "name": "1st pellet filling"
+      },
+      "pellet_filling_start_2": {
+        "name": "2nd pellet filling"
       }
     }
   },

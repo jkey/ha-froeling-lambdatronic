@@ -149,6 +149,12 @@
     "button": {
       "refresh_parameters": {
         "name": "Parameter neu lesen"
+      },
+      "reset_ash_counter": {
+        "name": "Asche-Zähler zurücksetzen"
+      },
+      "reset_pellet_counter": {
+        "name": "Pellet-Teilzähler zurücksetzen"
       }
     },
     "number": {
@@ -181,6 +187,21 @@
       },
       "recharge_below": {
         "name": "Nachladen unter"
+      },
+      "frost_protection": {
+        "name": "Frostschutz"
+      },
+      "pump_off_below_flow_setpoint": {
+        "name": "Pumpe aus unter Vorlauf-Soll"
+      },
+      "buffer_overheat_protection": {
+        "name": "Überhitzungsschutz ab Puffer oben"
+      },
+      "circuit_release": {
+        "name": "Heizkreisfreigabe ab"
+      },
+      "pump_off_above": {
+        "name": "Pumpe aus über Rücklauftemperatur"
       }
     },
     "select": {
@@ -421,6 +442,22 @@
       },
       "ignition_below_buffer_temperature": {
         "name": "Zündung unter Puffertemperatur"
+      }
+    },
+    "switch": {
+      "boiler_on": {
+        "name": "Kessel"
+      },
+      "auto_feeder": {
+        "name": "Automatische Austragung"
+      }
+    },
+    "time": {
+      "pellet_filling_start_1": {
+        "name": "1. Pelletbefüllung"
+      },
+      "pellet_filling_start_2": {
+        "name": "2. Pelletbefüllung"
       }
     }
   },

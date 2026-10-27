@@ -17,6 +17,12 @@
     "button": {
       "refresh_parameters": {
         "default": "mdi:refresh"
+      },
+      "reset_ash_counter": {
+        "default": "mdi:delete-empty-outline"
+      },
+      "reset_pellet_counter": {
+        "default": "mdi:counter"
       }
     },
     "number": {
@@ -43,6 +49,21 @@
       },
       "recharge_below": {
         "default": "mdi:water-thermometer"
+      },
+      "frost_protection": {
+        "default": "mdi:snowflake-thermometer"
+      },
+      "pump_off_below_flow_setpoint": {
+        "default": "mdi:pump-off"
+      },
+      "buffer_overheat_protection": {
+        "default": "mdi:thermometer-alert"
+      },
+      "circuit_release": {
+        "default": "mdi:thermometer-check"
+      },
+      "pump_off_above": {
+        "default": "mdi:pump-off"
       }
     },
     "select": {
@@ -122,6 +143,25 @@
       },
       "charge": {
         "default": "mdi:gauge"
+      }
+    },
+    "switch": {
+      "boiler_on": {
+        "default": "mdi:fire-off",
+        "state": {
+          "on": "mdi:fire"
+        }
+      },
+      "auto_feeder": {
+        "default": "mdi:transfer-right"
+      }
+    },
+    "time": {
+      "pellet_filling_start_1": {
+        "default": "mdi:truck-delivery-outline"
+      },
+      "pellet_filling_start_2": {
+        "default": "mdi:truck-delivery-outline"
       }
     }
   }

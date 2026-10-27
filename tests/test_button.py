@@ -13,9 +13,8 @@ from homeassistant.helpers import entity_registry as er
 from pytest_homeassistant_custom_component.common import MockConfigEntry, snapshot_platform
 from syrupy.assertion import SnapshotAssertion
 
-from custom_components.froeling_lambdatronic.const import ConnectionType
-
 from . import setup_integration
+from .const import FACILITY_ID
 
 
 @pytest.fixture(autouse=True)
@@ -25,7 +24,6 @@ def only_buttons() -> object:
         yield
 
 
-@pytest.mark.parametrize("any_config_entry", [ConnectionType.MODBUS, ConnectionType.HYBRID], indirect=True)
 @pytest.mark.usefixtures("mock_client", "mock_cloud")
 async def test_entities(
     hass: HomeAssistant,
@@ -99,3 +97,26 @@ async def test_unavailable_without_boiler(
     state = hass.states.get("button.froling_pe1_read_parameters")
     assert state is not None
     assert state.state == STATE_UNAVAILABLE
+
+
+@pytest.mark.parametrize(
+    ("entity_id", "key"),
+    [
+        ("button.froling_pe1_reset_ash_counter", "reset_ash_counter"),
+        ("button.froling_pe1_reset_pellet_counter", "reset_pellet_counter"),
+    ],
+)
+async def test_reset(
+    hass: HomeAssistant,
+    mock_client: MagicMock,
+    mock_cloud: MagicMock,
+    mock_config_entry: MockConfigEntry,
+    entity_id: str,
+    key: str,
+) -> None:
+    """The reset buttons trigger the Fröling Connect action."""
+    await setup_integration(hass, mock_config_entry)
+
+    await hass.services.async_call(BUTTON_DOMAIN, SERVICE_PRESS, {ATTR_ENTITY_ID: entity_id}, blocking=True)
+
+    mock_cloud.set_value.assert_awaited_once_with(FACILITY_ID, key, True)

@@ -38,7 +38,15 @@ from .coordinator import (
 from .entity import ComponentKind, child_device_info, components
 from .sources import FroelingSources
 
-PLATFORMS = [Platform.BINARY_SENSOR, Platform.BUTTON, Platform.NUMBER, Platform.SELECT, Platform.SENSOR]
+PLATFORMS = [
+    Platform.BINARY_SENSOR,
+    Platform.BUTTON,
+    Platform.NUMBER,
+    Platform.SELECT,
+    Platform.SENSOR,
+    Platform.SWITCH,
+    Platform.TIME,
+]
 
 
 def equipment_from_data(data: Mapping[str, Any]) -> Equipment:

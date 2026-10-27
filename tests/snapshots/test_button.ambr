@@ -1,4 +1,104 @@
 # serializer version: 1
+# name: test_entities[cloud][button.froling_pe1_reset_ash_counter-entry]
+  EntityRegistryEntrySnapshot({
+    'aliases': list([
+      None,
+    ]),
+    'area_id': None,
+    'capabilities': None,
+    'config_entry_id': <ANY>,
+    'config_subentry_id': <ANY>,
+    'device_class': None,
+    'device_id': <ANY>,
+    'disabled_by': None,
+    'domain': 'button',
+    'entity_category': <EntityCategory.CONFIG: 'config'>,
+    'entity_id': 'button.froling_pe1_reset_ash_counter',
+    'has_entity_name': True,
+    'hidden_by': None,
+    'icon': None,
+    'id': <ANY>,
+    'labels': set({
+    }),
+    'name': None,
+    'object_id_base': 'Reset ash counter',
+    'options': dict({
+    }),
+    'original_device_class': None,
+    'original_icon': None,
+    'original_name': 'Reset ash counter',
+    'platform': 'froeling_lambdatronic',
+    'previous_unique_id': None,
+    'suggested_object_id': None,
+    'supported_features': 0,
+    'translation_key': 'reset_ash_counter',
+    'unique_id': '01K8FROELING0TEST0ENTRY000_reset_ash_counter',
+    'unit_of_measurement': None,
+  })
+# ---
+# name: test_entities[cloud][button.froling_pe1_reset_ash_counter-state]
+  StateSnapshot({
+    'attributes': ReadOnlyDict({
+      <EntityStateAttribute.FRIENDLY_NAME: 'friendly_name'>: 'Fröling PE1 Reset ash counter',
+    }),
+    'context': <ANY>,
+    'entity_id': 'button.froling_pe1_reset_ash_counter',
+    'last_changed': <ANY>,
+    'last_reported': <ANY>,
+    'last_updated': <ANY>,
+    'state': 'unknown',
+  })
+# ---
+# name: test_entities[cloud][button.froling_pe1_reset_pellet_counter-entry]
+  EntityRegistryEntrySnapshot({
+    'aliases': list([
+      None,
+    ]),
+    'area_id': None,
+    'capabilities': None,
+    'config_entry_id': <ANY>,
+    'config_subentry_id': <ANY>,
+    'device_class': None,
+    'device_id': <ANY>,
+    'disabled_by': None,
+    'domain': 'button',
+    'entity_category': <EntityCategory.CONFIG: 'config'>,
+    'entity_id': 'button.froling_pe1_reset_pellet_counter',
+    'has_entity_name': True,
+    'hidden_by': None,
+    'icon': None,
+    'id': <ANY>,
+    'labels': set({
+    }),
+    'name': None,
+    'object_id_base': 'Reset pellet counter',
+    'options': dict({
+    }),
+    'original_device_class': None,
+    'original_icon': None,
+    'original_name': 'Reset pellet counter',
+    'platform': 'froeling_lambdatronic',
+    'previous_unique_id': None,
+    'suggested_object_id': None,
+    'supported_features': 0,
+    'translation_key': 'reset_pellet_counter',
+    'unique_id': '01K8FROELING0TEST0ENTRY000_reset_pellet_counter',
+    'unit_of_measurement': None,
+  })
+# ---
+# name: test_entities[cloud][button.froling_pe1_reset_pellet_counter-state]
+  StateSnapshot({
+    'attributes': ReadOnlyDict({
+      <EntityStateAttribute.FRIENDLY_NAME: 'friendly_name'>: 'Fröling PE1 Reset pellet counter',
+    }),
+    'context': <ANY>,
+    'entity_id': 'button.froling_pe1_reset_pellet_counter',
+    'last_changed': <ANY>,
+    'last_reported': <ANY>,
+    'last_updated': <ANY>,
+    'state': 'unknown',
+  })
+# ---
 # name: test_entities[hybrid][button.froling_pe1_read_parameters-entry]
   EntityRegistryEntrySnapshot({
     'aliases': list([
@@ -43,6 +143,106 @@
     }),
     'context': <ANY>,
     'entity_id': 'button.froling_pe1_read_parameters',
+    'last_changed': <ANY>,
+    'last_reported': <ANY>,
+    'last_updated': <ANY>,
+    'state': 'unknown',
+  })
+# ---
+# name: test_entities[hybrid][button.froling_pe1_reset_ash_counter-entry]
+  EntityRegistryEntrySnapshot({
+    'aliases': list([
+      None,
+    ]),
+    'area_id': None,
+    'capabilities': None,
+    'config_entry_id': <ANY>,
+    'config_subentry_id': <ANY>,
+    'device_class': None,
+    'device_id': <ANY>,
+    'disabled_by': None,
+    'domain': 'button',
+    'entity_category': <EntityCategory.CONFIG: 'config'>,
+    'entity_id': 'button.froling_pe1_reset_ash_counter',
+    'has_entity_name': True,
+    'hidden_by': None,
+    'icon': None,
+    'id': <ANY>,
+    'labels': set({
+    }),
+    'name': None,
+    'object_id_base': 'Reset ash counter',
+    'options': dict({
+    }),
+    'original_device_class': None,
+    'original_icon': None,
+    'original_name': 'Reset ash counter',
+    'platform': 'froeling_lambdatronic',
+    'previous_unique_id': None,
+    'suggested_object_id': None,
+    'supported_features': 0,
+    'translation_key': 'reset_ash_counter',
+    'unique_id': '01K8FROELING0TEST0ENTRY000_reset_ash_counter',
+    'unit_of_measurement': None,
+  })
+# ---
+# name: test_entities[hybrid][button.froling_pe1_reset_ash_counter-state]
+  StateSnapshot({
+    'attributes': ReadOnlyDict({
+      <EntityStateAttribute.FRIENDLY_NAME: 'friendly_name'>: 'Fröling PE1 Reset ash counter',
+    }),
+    'context': <ANY>,
+    'entity_id': 'button.froling_pe1_reset_ash_counter',
+    'last_changed': <ANY>,
+    'last_reported': <ANY>,
+    'last_updated': <ANY>,
+    'state': 'unknown',
+  })
+# ---
+# name: test_entities[hybrid][button.froling_pe1_reset_pellet_counter-entry]
+  EntityRegistryEntrySnapshot({
+    'aliases': list([
+      None,
+    ]),
+    'area_id': None,
+    'capabilities': None,
+    'config_entry_id': <ANY>,
+    'config_subentry_id': <ANY>,
+    'device_class': None,
+    'device_id': <ANY>,
+    'disabled_by': None,
+    'domain': 'button',
+    'entity_category': <EntityCategory.CONFIG: 'config'>,
+    'entity_id': 'button.froling_pe1_reset_pellet_counter',
+    'has_entity_name': True,
+    'hidden_by': None,
+    'icon': None,
+    'id': <ANY>,
+    'labels': set({
+    }),
+    'name': None,
+    'object_id_base': 'Reset pellet counter',
+    'options': dict({
+    }),
+    'original_device_class': None,
+    'original_icon': None,
+    'original_name': 'Reset pellet counter',
+    'platform': 'froeling_lambdatronic',
+    'previous_unique_id': None,
+    'suggested_object_id': None,
+    'supported_features': 0,
+    'translation_key': 'reset_pellet_counter',
+    'unique_id': '01K8FROELING0TEST0ENTRY000_reset_pellet_counter',
+    'unit_of_measurement': None,
+  })
+# ---
+# name: test_entities[hybrid][button.froling_pe1_reset_pellet_counter-state]
+  StateSnapshot({
+    'attributes': ReadOnlyDict({
+      <EntityStateAttribute.FRIENDLY_NAME: 'friendly_name'>: 'Fröling PE1 Reset pellet counter',
+    }),
+    'context': <ANY>,
+    'entity_id': 'button.froling_pe1_reset_pellet_counter',
     'last_changed': <ANY>,
     'last_reported': <ANY>,
     'last_updated': <ANY>,

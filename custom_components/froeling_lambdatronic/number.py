@@ -12,7 +12,13 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
 from .coordinator import FroelingConfigEntry
-from .entity import BOILER_COMPONENT, Component, ComponentKind, FroelingWritableEntity
+from .entity import (
+    BOILER_COMPONENT,
+    CIRCULATION_COMPONENT,
+    Component,
+    ComponentKind,
+    FroelingWritableEntity,
+)
 from .sources import FroelingSources, Source
 
 PARALLEL_UPDATES = 1
@@ -44,12 +50,19 @@ HEATING_CIRCUIT_NUMBERS: tuple[NumberEntityDescription, ...] = (
     _setting("setback", UNIT_KELVIN_DIFFERENCE),
     _setting("heating_limit"),
     _setting("heating_limit_setback"),
+    _setting("frost_protection"),
+    _setting("pump_off_below_flow_setpoint"),
+    _setting("buffer_overheat_protection"),
 )
 
 HOT_WATER_NUMBERS: tuple[NumberEntityDescription, ...] = (
     _setting("setpoint"),
     _setting("recharge_below"),
 )
+
+BUFFER_NUMBERS: tuple[NumberEntityDescription, ...] = (_setting("circuit_release"),)
+
+CIRCULATION_NUMBERS: tuple[NumberEntityDescription, ...] = (_setting("pump_off_above"),)
 
 
 async def async_setup_entry(
@@ -65,6 +78,10 @@ async def async_setup_entry(
         entities += _numbers(sources, Component(ComponentKind.HEATING_CIRCUIT, n), HEATING_CIRCUIT_NUMBERS)
     for n in data.equipment.hot_water:
         entities += _numbers(sources, Component(ComponentKind.HOT_WATER, n), HOT_WATER_NUMBERS)
+    for n in data.equipment.buffers:
+        entities += _numbers(sources, Component(ComponentKind.BUFFER, n), BUFFER_NUMBERS)
+    if data.equipment.circulation_pump:
+        entities += _numbers(sources, CIRCULATION_COMPONENT, CIRCULATION_NUMBERS)
     async_add_entities(entities)
 
 
