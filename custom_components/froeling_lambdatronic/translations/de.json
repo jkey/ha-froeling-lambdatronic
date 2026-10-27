@@ -135,6 +135,15 @@
       },
       "boiler_demand": {
         "name": "Kesselanforderung"
+      },
+      "pump": {
+        "name": "Pumpe"
+      },
+      "flow_switch": {
+        "name": "Strömungsschalter"
+      },
+      "connect": {
+        "name": "Fröling Connect"
       }
     },
     "button": {
@@ -336,6 +345,12 @@
           },
           "more_errors": {
             "name": "Weitere Störungen"
+          },
+          "since": {
+            "name": "Seit"
+          },
+          "history": {
+            "name": "Verlauf"
           }
         }
       },
@@ -385,6 +400,27 @@
       },
       "pellet_counter": {
         "name": "Pelletverbrauch-Zähler"
+      },
+      "hours_since_maintenance": {
+        "name": "Stunden seit Wartung"
+      },
+      "induced_draft_control": {
+        "name": "Saugzug-Ansteuerung"
+      },
+      "partial_load_hours": {
+        "name": "Stunden in Teillast"
+      },
+      "connected_since": {
+        "name": "Verbunden seit"
+      },
+      "last_signal": {
+        "name": "Letztes Signal"
+      },
+      "charge": {
+        "name": "Ladezustand"
+      },
+      "ignition_below_buffer_temperature": {
+        "name": "Zündung unter Puffertemperatur"
       }
     }
   },

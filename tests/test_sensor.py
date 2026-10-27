@@ -5,7 +5,7 @@ from datetime import timedelta
 from unittest.mock import MagicMock, patch
 
 import pytest
-from froeling_lambdatronic import NoResponseError
+from froeling_lambdatronic import CirculationValues, CloudError, ConnectionFailedError, NoResponseError
 from homeassistant.const import STATE_UNAVAILABLE, STATE_UNKNOWN, Platform
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import entity_registry as er
@@ -17,10 +17,14 @@ from pytest_homeassistant_custom_component.common import (
 )
 from syrupy.assertion import SnapshotAssertion
 
-from custom_components.froeling_lambdatronic.sensor import FroelingCurveSensor
+from custom_components.froeling_lambdatronic.const import DOMAIN
+from custom_components.froeling_lambdatronic.sensor import FroelingCurveSensor, FroelingFaultSensor
 
 from . import setup_integration
-from .const import PARAMETERS, VALUES
+from .const import CLOUD_ERRORS, PARAMETERS, VALUES
+
+FAULT_TEXT = "sensor.froling_pe1_fault_text"
+CIRCULATION_RETURN = "sensor.froling_pe1_circulation_pump_return_temperature"
 
 
 @pytest.fixture(autouse=True)
@@ -42,15 +46,18 @@ async def test_entities(
     await snapshot_platform(hass, entity_registry, snapshot, any_config_entry.entry_id)
 
 
-@pytest.mark.usefixtures("mock_client")
+@pytest.mark.usefixtures("mock_client", "mock_cloud")
 async def test_disabled_by_default(
-    hass: HomeAssistant, entity_registry: er.EntityRegistry, mock_config_entry_modbus: MockConfigEntry
+    hass: HomeAssistant, entity_registry: er.EntityRegistry, mock_config_entry: MockConfigEntry
 ) -> None:
-    """Return and room temperature start disabled."""
-    await setup_integration(hass, mock_config_entry_modbus)
+    """Return and room temperature, ignition limit and connection times start disabled."""
+    await setup_integration(hass, mock_config_entry)
     for entity_id in (
         "sensor.froling_pe1_return_temperature",
-        "sensor.froling_pe1_heating_circuit_01_room_temperature",
+        "sensor.froling_pe1_wohnbereich_room_temperature",
+        "sensor.froling_pe1_pufferspeicher_ignition_below_buffer_temperature",
+        "sensor.froling_pe1_connected_since",
+        "sensor.froling_pe1_last_signal",
     ):
         entry = entity_registry.async_get(entity_id)
         assert entry is not None
@@ -64,11 +71,98 @@ async def test_fault_sensor(
     mock_client.read_values.return_value = replace(VALUES, errors=(4, 21))
     await setup_integration(hass, mock_config_entry_modbus)
 
-    state = hass.states.get("sensor.froling_pe1_fault_text")
+    state = hass.states.get(FAULT_TEXT)
     assert state is not None
     assert state.state != "Keine Störung"
     assert state.attributes["error_code"] == 4
     assert len(state.attributes["more_errors"]) == 1
+    assert "history" not in state.attributes
+
+
+async def test_fault_sensor_hybrid(
+    hass: HomeAssistant, mock_client: MagicMock, mock_cloud: MagicMock, mock_config_entry: MockConfigEntry
+) -> None:
+    """Hybrid: text from Modbus; time of the newest cloud message while a fault is active."""
+    mock_client.read_values.return_value = replace(VALUES, errors=(4,))
+    await setup_integration(hass, mock_config_entry)
+
+    state = hass.states.get(FAULT_TEXT)
+    assert state is not None
+    assert state.attributes["error_code"] == 4
+    assert state.attributes["since"] == "2026-10-21T17:40:12.345000+00:00"
+    assert [entry["message"] for entry in state.attributes["history"]] == [
+        "Pelletlager Mindestbestand erreicht",
+        "Kessel Übertemperatur",
+    ]
+    assert {"since", "history"} <= FroelingFaultSensor._unrecorded_attributes
+
+    mock_cloud.get_errors.side_effect = ConnectionFailedError("down")
+    await mock_config_entry.runtime_data.cloud.async_refresh()
+    await hass.async_block_till_done()
+    state = hass.states.get(FAULT_TEXT)
+    assert state is not None
+    assert state.state != STATE_UNAVAILABLE
+
+
+async def test_fault_sensor_cloud(
+    hass: HomeAssistant, mock_cloud: MagicMock, mock_config_entry_cloud: MockConfigEntry
+) -> None:
+    """Connect only: newest message while the boiler is in a fault state, else the state text."""
+    undated = CloudError(
+        error_id=None, timestamp=None, severity="alarm", message="Ohne Zeit", resolutions=None
+    )
+    mock_cloud.get_errors.return_value = [undated, *CLOUD_ERRORS]
+    mock_cloud.snapshot_changes = {"boiler_state": 41}
+    await setup_integration(hass, mock_config_entry_cloud)
+
+    state = hass.states.get(FAULT_TEXT)
+    assert state is not None
+    assert state.state == "Pelletlager Mindestbestand erreicht"
+    assert state.attributes["since"] == "2026-10-21T17:40:12.345000+00:00"
+    assert [entry["message"] for entry in state.attributes["history"]][-1] == "Ohne Zeit"
+    assert "error_code" not in state.attributes
+
+    mock_cloud.get_errors.return_value = []
+    await mock_config_entry_cloud.runtime_data.cloud.async_refresh()
+    await hass.async_block_till_done()
+    state = hass.states.get(FAULT_TEXT)
+    assert state is not None
+    assert state.state == "STÖRUNG: STB/NA"
+    assert state.attributes["since"] is None
+
+
+async def test_circulation_return_temperature(
+    hass: HomeAssistant, mock_client: MagicMock, mock_config_entry_modbus: MockConfigEntry
+) -> None:
+    """The return temperature of the circulation pump exists only with a configured probe."""
+    await setup_integration(hass, mock_config_entry_modbus)
+    assert hass.states.get(CIRCULATION_RETURN) is None
+    await hass.config_entries.async_unload(mock_config_entry_modbus.entry_id)
+
+    mock_client.read_values.return_value = replace(
+        VALUES, circulation=CirculationValues(flow_switch=False, pump=0.0, return_temperature=24.5)
+    )
+    await hass.config_entries.async_reload(mock_config_entry_modbus.entry_id)
+    await hass.async_block_till_done()
+    state = hass.states.get(CIRCULATION_RETURN)
+    assert state is not None
+    assert state.state == "24.5"
+
+
+@pytest.mark.usefixtures("mock_cloud")
+async def test_circulation_return_temperature_cloud(
+    hass: HomeAssistant, entity_registry: er.EntityRegistry, mock_config_entry_cloud: MockConfigEntry
+) -> None:
+    """Connect only: the return temperature exists but starts disabled (0 without a probe)."""
+    await setup_integration(hass, mock_config_entry_cloud)
+
+    entity_id = entity_registry.async_get_entity_id(
+        "sensor", DOMAIN, f"{mock_config_entry_cloud.entry_id}_circulation_return_temperature"
+    )
+    assert entity_id is not None
+    entry = entity_registry.async_get(entity_id)
+    assert entry is not None
+    assert entry.disabled_by is er.RegistryEntryDisabler.INTEGRATION
 
 
 async def test_unknown_states(

@@ -135,6 +135,15 @@
       },
       "boiler_demand": {
         "name": "Boiler demand"
+      },
+      "pump": {
+        "name": "Pump"
+      },
+      "flow_switch": {
+        "name": "Flow switch"
+      },
+      "connect": {
+        "name": "Fröling Connect"
       }
     },
     "button": {
@@ -336,6 +345,12 @@
           },
           "more_errors": {
             "name": "More errors"
+          },
+          "since": {
+            "name": "Since"
+          },
+          "history": {
+            "name": "History"
           }
         }
       },
@@ -385,6 +400,27 @@
       },
       "pellet_counter": {
         "name": "Pellet counter"
+      },
+      "hours_since_maintenance": {
+        "name": "Hours since maintenance"
+      },
+      "induced_draft_control": {
+        "name": "Induced draught control"
+      },
+      "partial_load_hours": {
+        "name": "Hours in partial load"
+      },
+      "connected_since": {
+        "name": "Connected since"
+      },
+      "last_signal": {
+        "name": "Last signal"
+      },
+      "charge": {
+        "name": "Charge"
+      },
+      "ignition_below_buffer_temperature": {
+        "name": "Ignition below buffer temperature"
       }
     }
   },

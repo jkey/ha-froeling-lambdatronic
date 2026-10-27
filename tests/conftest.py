@@ -1,10 +1,11 @@
 """Fixtures for the Fröling Lambdatronic tests."""
 
-from collections.abc import Generator
+from collections.abc import Generator, Sequence
+from dataclasses import replace
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-from froeling_lambdatronic import Facility
+from froeling_lambdatronic import CloudComponentDetail, CloudOverview, CloudSnapshot, Facility, build_snapshot
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.froeling_lambdatronic.const import DOMAIN, ConnectionType
@@ -117,7 +118,16 @@ def mock_cloud() -> Generator[MagicMock]:
     cloud.get_header = AsyncMock(return_value=HEADER)
     cloud.set_value = AsyncMock()
     cloud.set_operating_mode = AsyncMock()
+    # Tests change cloud values with `mock_cloud.snapshot_changes` (None removes a key).
+    cloud.snapshot_changes = {}
+
+    def snapshot(overview: CloudOverview, details: Sequence[CloudComponentDetail] = ()) -> CloudSnapshot:
+        built = build_snapshot(overview, details)
+        values = {**built.values, **cloud.snapshot_changes}
+        return replace(built, values={key: value for key, value in values.items() if value is not None})
+
     with (
+        patch("custom_components.froeling_lambdatronic.coordinator.build_snapshot", side_effect=snapshot),
         patch("custom_components.froeling_lambdatronic.FroelingConnectClient", return_value=cloud),
         patch(
             "custom_components.froeling_lambdatronic.config_flow.FroelingConnectClient", return_value=cloud

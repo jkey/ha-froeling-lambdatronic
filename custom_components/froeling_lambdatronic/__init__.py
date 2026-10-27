@@ -129,6 +129,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: FroelingConfigEntry) -> 
             parameters=parameters,
             cloud_client=cloud_client,
             cloud=cloud,
+            cloud_info=cloud_info,
             facility_id=facility_id,
         ),
     )

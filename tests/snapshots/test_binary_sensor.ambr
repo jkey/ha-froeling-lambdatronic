@@ -1,4 +1,309 @@
 # serializer version: 1
+# name: test_entities[cloud][binary_sensor.froling_pe1_anbau_pump-entry]
+  EntityRegistryEntrySnapshot({
+    'aliases': list([
+      None,
+    ]),
+    'area_id': None,
+    'capabilities': None,
+    'config_entry_id': <ANY>,
+    'config_subentry_id': <ANY>,
+    'device_class': None,
+    'device_id': <ANY>,
+    'disabled_by': None,
+    'domain': 'binary_sensor',
+    'entity_category': None,
+    'entity_id': 'binary_sensor.froling_pe1_anbau_pump',
+    'has_entity_name': True,
+    'hidden_by': None,
+    'icon': None,
+    'id': <ANY>,
+    'labels': set({
+    }),
+    'name': None,
+    'object_id_base': 'Pump',
+    'options': dict({
+    }),
+    'original_device_class': <BinarySensorDeviceClass.RUNNING: 'running'>,
+    'original_icon': None,
+    'original_name': 'Pump',
+    'platform': 'froeling_lambdatronic',
+    'previous_unique_id': None,
+    'suggested_object_id': None,
+    'supported_features': 0,
+    'translation_key': 'pump',
+    'unique_id': '01K8FROELING0TEST0ENTRY000_hc2_pump',
+    'unit_of_measurement': None,
+  })
+# ---
+# name: test_entities[cloud][binary_sensor.froling_pe1_anbau_pump-state]
+  StateSnapshot({
+    'attributes': ReadOnlyDict({
+      <EntityStateAttribute.DEVICE_CLASS: 'device_class'>: 'running',
+      <EntityStateAttribute.FRIENDLY_NAME: 'friendly_name'>: 'Anbau Pump',
+    }),
+    'context': <ANY>,
+    'entity_id': 'binary_sensor.froling_pe1_anbau_pump',
+    'last_changed': <ANY>,
+    'last_reported': <ANY>,
+    'last_updated': <ANY>,
+    'state': 'off',
+  })
+# ---
+# name: test_entities[cloud][binary_sensor.froling_pe1_fault-entry]
+  EntityRegistryEntrySnapshot({
+    'aliases': list([
+      None,
+    ]),
+    'area_id': None,
+    'capabilities': None,
+    'config_entry_id': <ANY>,
+    'config_subentry_id': <ANY>,
+    'device_class': None,
+    'device_id': <ANY>,
+    'disabled_by': None,
+    'domain': 'binary_sensor',
+    'entity_category': None,
+    'entity_id': 'binary_sensor.froling_pe1_fault',
+    'has_entity_name': True,
+    'hidden_by': None,
+    'icon': None,
+    'id': <ANY>,
+    'labels': set({
+    }),
+    'name': None,
+    'object_id_base': 'Fault',
+    'options': dict({
+    }),
+    'original_device_class': <BinarySensorDeviceClass.PROBLEM: 'problem'>,
+    'original_icon': None,
+    'original_name': 'Fault',
+    'platform': 'froeling_lambdatronic',
+    'previous_unique_id': None,
+    'suggested_object_id': None,
+    'supported_features': 0,
+    'translation_key': 'fault_active',
+    'unique_id': '01K8FROELING0TEST0ENTRY000_fault_active',
+    'unit_of_measurement': None,
+  })
+# ---
+# name: test_entities[cloud][binary_sensor.froling_pe1_fault-state]
+  StateSnapshot({
+    'attributes': ReadOnlyDict({
+      <EntityStateAttribute.DEVICE_CLASS: 'device_class'>: 'problem',
+      <EntityStateAttribute.FRIENDLY_NAME: 'friendly_name'>: 'Fröling PE1 Fault',
+    }),
+    'context': <ANY>,
+    'entity_id': 'binary_sensor.froling_pe1_fault',
+    'last_changed': <ANY>,
+    'last_reported': <ANY>,
+    'last_updated': <ANY>,
+    'state': 'off',
+  })
+# ---
+# name: test_entities[cloud][binary_sensor.froling_pe1_froling_connect-entry]
+  EntityRegistryEntrySnapshot({
+    'aliases': list([
+      None,
+    ]),
+    'area_id': None,
+    'capabilities': None,
+    'config_entry_id': <ANY>,
+    'config_subentry_id': <ANY>,
+    'device_class': None,
+    'device_id': <ANY>,
+    'disabled_by': None,
+    'domain': 'binary_sensor',
+    'entity_category': <EntityCategory.DIAGNOSTIC: 'diagnostic'>,
+    'entity_id': 'binary_sensor.froling_pe1_froling_connect',
+    'has_entity_name': True,
+    'hidden_by': None,
+    'icon': None,
+    'id': <ANY>,
+    'labels': set({
+    }),
+    'name': None,
+    'object_id_base': 'Fröling Connect',
+    'options': dict({
+    }),
+    'original_device_class': <BinarySensorDeviceClass.CONNECTIVITY: 'connectivity'>,
+    'original_icon': None,
+    'original_name': 'Fröling Connect',
+    'platform': 'froeling_lambdatronic',
+    'previous_unique_id': None,
+    'suggested_object_id': None,
+    'supported_features': 0,
+    'translation_key': 'connect',
+    'unique_id': '01K8FROELING0TEST0ENTRY000_connect',
+    'unit_of_measurement': None,
+  })
+# ---
+# name: test_entities[cloud][binary_sensor.froling_pe1_froling_connect-state]
+  StateSnapshot({
+    'attributes': ReadOnlyDict({
+      <EntityStateAttribute.DEVICE_CLASS: 'device_class'>: 'connectivity',
+      <EntityStateAttribute.FRIENDLY_NAME: 'friendly_name'>: 'Fröling PE1 Fröling Connect',
+    }),
+    'context': <ANY>,
+    'entity_id': 'binary_sensor.froling_pe1_froling_connect',
+    'last_changed': <ANY>,
+    'last_reported': <ANY>,
+    'last_updated': <ANY>,
+    'state': 'on',
+  })
+# ---
+# name: test_entities[cloud][binary_sensor.froling_pe1_wohnbereich_pump-entry]
+  EntityRegistryEntrySnapshot({
+    'aliases': list([
+      None,
+    ]),
+    'area_id': None,
+    'capabilities': None,
+    'config_entry_id': <ANY>,
+    'config_subentry_id': <ANY>,
+    'device_class': None,
+    'device_id': <ANY>,
+    'disabled_by': None,
+    'domain': 'binary_sensor',
+    'entity_category': None,
+    'entity_id': 'binary_sensor.froling_pe1_wohnbereich_pump',
+    'has_entity_name': True,
+    'hidden_by': None,
+    'icon': None,
+    'id': <ANY>,
+    'labels': set({
+    }),
+    'name': None,
+    'object_id_base': 'Pump',
+    'options': dict({
+    }),
+    'original_device_class': <BinarySensorDeviceClass.RUNNING: 'running'>,
+    'original_icon': None,
+    'original_name': 'Pump',
+    'platform': 'froeling_lambdatronic',
+    'previous_unique_id': None,
+    'suggested_object_id': None,
+    'supported_features': 0,
+    'translation_key': 'pump',
+    'unique_id': '01K8FROELING0TEST0ENTRY000_hc1_pump',
+    'unit_of_measurement': None,
+  })
+# ---
+# name: test_entities[cloud][binary_sensor.froling_pe1_wohnbereich_pump-state]
+  StateSnapshot({
+    'attributes': ReadOnlyDict({
+      <EntityStateAttribute.DEVICE_CLASS: 'device_class'>: 'running',
+      <EntityStateAttribute.FRIENDLY_NAME: 'friendly_name'>: 'Wohnbereich Pump',
+    }),
+    'context': <ANY>,
+    'entity_id': 'binary_sensor.froling_pe1_wohnbereich_pump',
+    'last_changed': <ANY>,
+    'last_reported': <ANY>,
+    'last_updated': <ANY>,
+    'state': 'off',
+  })
+# ---
+# name: test_entities[cloud][binary_sensor.froling_pe1_zirku_pumpe_flow_switch-entry]
+  EntityRegistryEntrySnapshot({
+    'aliases': list([
+      None,
+    ]),
+    'area_id': None,
+    'capabilities': None,
+    'config_entry_id': <ANY>,
+    'config_subentry_id': <ANY>,
+    'device_class': None,
+    'device_id': <ANY>,
+    'disabled_by': None,
+    'domain': 'binary_sensor',
+    'entity_category': None,
+    'entity_id': 'binary_sensor.froling_pe1_zirku_pumpe_flow_switch',
+    'has_entity_name': True,
+    'hidden_by': None,
+    'icon': None,
+    'id': <ANY>,
+    'labels': set({
+    }),
+    'name': None,
+    'object_id_base': 'Flow switch',
+    'options': dict({
+    }),
+    'original_device_class': None,
+    'original_icon': None,
+    'original_name': 'Flow switch',
+    'platform': 'froeling_lambdatronic',
+    'previous_unique_id': None,
+    'suggested_object_id': None,
+    'supported_features': 0,
+    'translation_key': 'flow_switch',
+    'unique_id': '01K8FROELING0TEST0ENTRY000_circulation_flow_switch',
+    'unit_of_measurement': None,
+  })
+# ---
+# name: test_entities[cloud][binary_sensor.froling_pe1_zirku_pumpe_flow_switch-state]
+  StateSnapshot({
+    'attributes': ReadOnlyDict({
+      <EntityStateAttribute.FRIENDLY_NAME: 'friendly_name'>: 'Zirku. Pumpe Flow switch',
+    }),
+    'context': <ANY>,
+    'entity_id': 'binary_sensor.froling_pe1_zirku_pumpe_flow_switch',
+    'last_changed': <ANY>,
+    'last_reported': <ANY>,
+    'last_updated': <ANY>,
+    'state': 'off',
+  })
+# ---
+# name: test_entities[hybrid][binary_sensor.froling_pe1_anbau_pump-entry]
+  EntityRegistryEntrySnapshot({
+    'aliases': list([
+      None,
+    ]),
+    'area_id': None,
+    'capabilities': None,
+    'config_entry_id': <ANY>,
+    'config_subentry_id': <ANY>,
+    'device_class': None,
+    'device_id': <ANY>,
+    'disabled_by': None,
+    'domain': 'binary_sensor',
+    'entity_category': None,
+    'entity_id': 'binary_sensor.froling_pe1_anbau_pump',
+    'has_entity_name': True,
+    'hidden_by': None,
+    'icon': None,
+    'id': <ANY>,
+    'labels': set({
+    }),
+    'name': None,
+    'object_id_base': 'Pump',
+    'options': dict({
+    }),
+    'original_device_class': <BinarySensorDeviceClass.RUNNING: 'running'>,
+    'original_icon': None,
+    'original_name': 'Pump',
+    'platform': 'froeling_lambdatronic',
+    'previous_unique_id': None,
+    'suggested_object_id': None,
+    'supported_features': 0,
+    'translation_key': 'pump',
+    'unique_id': '01K8FROELING0TEST0ENTRY000_hc2_pump',
+    'unit_of_measurement': None,
+  })
+# ---
+# name: test_entities[hybrid][binary_sensor.froling_pe1_anbau_pump-state]
+  StateSnapshot({
+    'attributes': ReadOnlyDict({
+      <EntityStateAttribute.DEVICE_CLASS: 'device_class'>: 'running',
+      <EntityStateAttribute.FRIENDLY_NAME: 'friendly_name'>: 'Anbau Pump',
+    }),
+    'context': <ANY>,
+    'entity_id': 'binary_sensor.froling_pe1_anbau_pump',
+    'last_changed': <ANY>,
+    'last_reported': <ANY>,
+    'last_updated': <ANY>,
+    'state': 'on',
+  })
+# ---
 # name: test_entities[hybrid][binary_sensor.froling_pe1_boiler_demand-entry]
   EntityRegistryEntrySnapshot({
     'aliases': list([
@@ -100,6 +405,158 @@
     'state': 'off',
   })
 # ---
+# name: test_entities[hybrid][binary_sensor.froling_pe1_froling_connect-entry]
+  EntityRegistryEntrySnapshot({
+    'aliases': list([
+      None,
+    ]),
+    'area_id': None,
+    'capabilities': None,
+    'config_entry_id': <ANY>,
+    'config_subentry_id': <ANY>,
+    'device_class': None,
+    'device_id': <ANY>,
+    'disabled_by': None,
+    'domain': 'binary_sensor',
+    'entity_category': <EntityCategory.DIAGNOSTIC: 'diagnostic'>,
+    'entity_id': 'binary_sensor.froling_pe1_froling_connect',
+    'has_entity_name': True,
+    'hidden_by': None,
+    'icon': None,
+    'id': <ANY>,
+    'labels': set({
+    }),
+    'name': None,
+    'object_id_base': 'Fröling Connect',
+    'options': dict({
+    }),
+    'original_device_class': <BinarySensorDeviceClass.CONNECTIVITY: 'connectivity'>,
+    'original_icon': None,
+    'original_name': 'Fröling Connect',
+    'platform': 'froeling_lambdatronic',
+    'previous_unique_id': None,
+    'suggested_object_id': None,
+    'supported_features': 0,
+    'translation_key': 'connect',
+    'unique_id': '01K8FROELING0TEST0ENTRY000_connect',
+    'unit_of_measurement': None,
+  })
+# ---
+# name: test_entities[hybrid][binary_sensor.froling_pe1_froling_connect-state]
+  StateSnapshot({
+    'attributes': ReadOnlyDict({
+      <EntityStateAttribute.DEVICE_CLASS: 'device_class'>: 'connectivity',
+      <EntityStateAttribute.FRIENDLY_NAME: 'friendly_name'>: 'Fröling PE1 Fröling Connect',
+    }),
+    'context': <ANY>,
+    'entity_id': 'binary_sensor.froling_pe1_froling_connect',
+    'last_changed': <ANY>,
+    'last_reported': <ANY>,
+    'last_updated': <ANY>,
+    'state': 'on',
+  })
+# ---
+# name: test_entities[hybrid][binary_sensor.froling_pe1_wohnbereich_pump-entry]
+  EntityRegistryEntrySnapshot({
+    'aliases': list([
+      None,
+    ]),
+    'area_id': None,
+    'capabilities': None,
+    'config_entry_id': <ANY>,
+    'config_subentry_id': <ANY>,
+    'device_class': None,
+    'device_id': <ANY>,
+    'disabled_by': None,
+    'domain': 'binary_sensor',
+    'entity_category': None,
+    'entity_id': 'binary_sensor.froling_pe1_wohnbereich_pump',
+    'has_entity_name': True,
+    'hidden_by': None,
+    'icon': None,
+    'id': <ANY>,
+    'labels': set({
+    }),
+    'name': None,
+    'object_id_base': 'Pump',
+    'options': dict({
+    }),
+    'original_device_class': <BinarySensorDeviceClass.RUNNING: 'running'>,
+    'original_icon': None,
+    'original_name': 'Pump',
+    'platform': 'froeling_lambdatronic',
+    'previous_unique_id': None,
+    'suggested_object_id': None,
+    'supported_features': 0,
+    'translation_key': 'pump',
+    'unique_id': '01K8FROELING0TEST0ENTRY000_hc1_pump',
+    'unit_of_measurement': None,
+  })
+# ---
+# name: test_entities[hybrid][binary_sensor.froling_pe1_wohnbereich_pump-state]
+  StateSnapshot({
+    'attributes': ReadOnlyDict({
+      <EntityStateAttribute.DEVICE_CLASS: 'device_class'>: 'running',
+      <EntityStateAttribute.FRIENDLY_NAME: 'friendly_name'>: 'Wohnbereich Pump',
+    }),
+    'context': <ANY>,
+    'entity_id': 'binary_sensor.froling_pe1_wohnbereich_pump',
+    'last_changed': <ANY>,
+    'last_reported': <ANY>,
+    'last_updated': <ANY>,
+    'state': 'on',
+  })
+# ---
+# name: test_entities[hybrid][binary_sensor.froling_pe1_zirku_pumpe_flow_switch-entry]
+  EntityRegistryEntrySnapshot({
+    'aliases': list([
+      None,
+    ]),
+    'area_id': None,
+    'capabilities': None,
+    'config_entry_id': <ANY>,
+    'config_subentry_id': <ANY>,
+    'device_class': None,
+    'device_id': <ANY>,
+    'disabled_by': None,
+    'domain': 'binary_sensor',
+    'entity_category': None,
+    'entity_id': 'binary_sensor.froling_pe1_zirku_pumpe_flow_switch',
+    'has_entity_name': True,
+    'hidden_by': None,
+    'icon': None,
+    'id': <ANY>,
+    'labels': set({
+    }),
+    'name': None,
+    'object_id_base': 'Flow switch',
+    'options': dict({
+    }),
+    'original_device_class': None,
+    'original_icon': None,
+    'original_name': 'Flow switch',
+    'platform': 'froeling_lambdatronic',
+    'previous_unique_id': None,
+    'suggested_object_id': None,
+    'supported_features': 0,
+    'translation_key': 'flow_switch',
+    'unique_id': '01K8FROELING0TEST0ENTRY000_circulation_flow_switch',
+    'unit_of_measurement': None,
+  })
+# ---
+# name: test_entities[hybrid][binary_sensor.froling_pe1_zirku_pumpe_flow_switch-state]
+  StateSnapshot({
+    'attributes': ReadOnlyDict({
+      <EntityStateAttribute.FRIENDLY_NAME: 'friendly_name'>: 'Zirku. Pumpe Flow switch',
+    }),
+    'context': <ANY>,
+    'entity_id': 'binary_sensor.froling_pe1_zirku_pumpe_flow_switch',
+    'last_changed': <ANY>,
+    'last_reported': <ANY>,
+    'last_updated': <ANY>,
+    'state': 'off',
+  })
+# ---
 # name: test_entities[modbus][binary_sensor.froling_pe1_boiler_demand-entry]
   EntityRegistryEntrySnapshot({
     'aliases': list([
@@ -144,6 +601,56 @@
     }),
     'context': <ANY>,
     'entity_id': 'binary_sensor.froling_pe1_boiler_demand',
+    'last_changed': <ANY>,
+    'last_reported': <ANY>,
+    'last_updated': <ANY>,
+    'state': 'off',
+  })
+# ---
+# name: test_entities[modbus][binary_sensor.froling_pe1_circulation_pump_flow_switch-entry]
+  EntityRegistryEntrySnapshot({
+    'aliases': list([
+      None,
+    ]),
+    'area_id': None,
+    'capabilities': None,
+    'config_entry_id': <ANY>,
+    'config_subentry_id': <ANY>,
+    'device_class': None,
+    'device_id': <ANY>,
+    'disabled_by': None,
+    'domain': 'binary_sensor',
+    'entity_category': None,
+    'entity_id': 'binary_sensor.froling_pe1_circulation_pump_flow_switch',
+    'has_entity_name': True,
+    'hidden_by': None,
+    'icon': None,
+    'id': <ANY>,
+    'labels': set({
+    }),
+    'name': None,
+    'object_id_base': 'Flow switch',
+    'options': dict({
+    }),
+    'original_device_class': None,
+    'original_icon': None,
+    'original_name': 'Flow switch',
+    'platform': 'froeling_lambdatronic',
+    'previous_unique_id': None,
+    'suggested_object_id': None,
+    'supported_features': 0,
+    'translation_key': 'flow_switch',
+    'unique_id': '01K8FROELING0TEST0ENTRY000_circulation_flow_switch',
+    'unit_of_measurement': None,
+  })
+# ---
+# name: test_entities[modbus][binary_sensor.froling_pe1_circulation_pump_flow_switch-state]
+  StateSnapshot({
+    'attributes': ReadOnlyDict({
+      <EntityStateAttribute.FRIENDLY_NAME: 'friendly_name'>: 'Circulation pump Flow switch',
+    }),
+    'context': <ANY>,
+    'entity_id': 'binary_sensor.froling_pe1_circulation_pump_flow_switch',
     'last_changed': <ANY>,
     'last_reported': <ANY>,
     'last_updated': <ANY>,

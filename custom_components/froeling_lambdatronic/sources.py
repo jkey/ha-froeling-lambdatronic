@@ -28,6 +28,7 @@ from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 from .const import DOMAIN, ISSUE_PROTOCOL_DISABLED
 from .coordinator import (
     CloudCoordinator,
+    CloudInfoCoordinator,
     FroelingConfigEntry,
     ModbusParametersCoordinator,
     ModbusValuesCoordinator,
@@ -39,11 +40,16 @@ type WriteValue = float | time
 
 
 class Source(StrEnum):
-    """Where a value is read from or written to."""
+    """Where a value is read from or written to.
+
+    `CLOUD_INFO` (system information and connection state) holds no value keys; entities that
+    show it use the source only to find their coordinator.
+    """
 
     MODBUS_VALUES = "modbus_values"
     MODBUS_PARAMETERS = "modbus_parameters"
     CLOUD = "cloud"
+    CLOUD_INFO = "cloud_info"
 
 
 class FroelingSources:
@@ -64,6 +70,7 @@ class FroelingSources:
         parameters: ModbusParametersCoordinator | None,
         cloud_client: FroelingConnectClient | None,
         cloud: CloudCoordinator | None,
+        cloud_info: CloudInfoCoordinator | None,
         facility_id: int | None,
     ) -> None:
         self._hass = hass
@@ -73,6 +80,7 @@ class FroelingSources:
         self._parameters = parameters
         self._cloud_client = cloud_client
         self._cloud = cloud
+        self._cloud_info = cloud_info
         self._facility_id = facility_id
         self._decided: dict[str, Source | None] = {}
         self._flat_cache: dict[Source, tuple[object, Mapping[str, FlatValue]]] = {}
@@ -108,6 +116,7 @@ class FroelingSources:
             Source.MODBUS_VALUES: self._values,
             Source.MODBUS_PARAMETERS: self._parameters,
             Source.CLOUD: self._cloud,
+            Source.CLOUD_INFO: self._cloud_info,
         }[source]
         if coordinator is None:
             raise ValueError(f"source {source} is not configured")

@@ -2,10 +2,17 @@
 
 from collections.abc import Callable
 from dataclasses import dataclass
-from datetime import time
+from datetime import datetime, time
 from typing import Any
 
-from froeling_lambdatronic import FlatValue, HeatingCircuitParameters, error_text
+from froeling_lambdatronic import (
+    CloudError,
+    FlatValue,
+    HeatingCircuitParameters,
+    boiler_state_text,
+    error_text,
+)
+from froeling_lambdatronic.texts import FAULT_BOILER_STATES
 from homeassistant.components.sensor import (
     SensorDeviceClass,
     SensorEntity,
@@ -25,13 +32,14 @@ from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 from homeassistant.helpers.typing import StateType
 
 from .const import BOILER_STATE_KEYS, SYSTEM_STATE_KEYS
-from .coordinator import FroelingConfigEntry
-from .entity import BOILER_COMPONENT, Component, ComponentKind, FroelingEntity
+from .coordinator import CloudInfo, FroelingConfigEntry
+from .entity import BOILER_COMPONENT, CIRCULATION_COMPONENT, Component, ComponentKind, FroelingEntity
 from .sources import FroelingSources, Source
 
 PARALLEL_UPDATES = 0
 
 NO_FAULT = "Keine Störung"
+HISTORY_LENGTH = 10
 
 
 def _state(value: FlatValue) -> StateType:
@@ -48,6 +56,10 @@ class FroelingSensorDescription(SensorEntityDescription):
 
     value_key: str | None = None
     convert: Callable[[FlatValue], StateType] = _state
+    # Only created if the value is known during setup (e.g. an optional probe).
+    requires_value: bool = False
+    # False: disabled by default when read from Fröling Connect.
+    enabled_from_cloud: bool = True
 
 
 def _temperature(key: str, *, enabled: bool = True) -> FroelingSensorDescription:
@@ -169,6 +181,21 @@ BOILER_SENSORS: tuple[FroelingSensorDescription, ...] = (
         state_class=SensorStateClass.MEASUREMENT,
         entity_category=EntityCategory.DIAGNOSTIC,
     ),
+    FroelingSensorDescription(
+        key="hours_since_maintenance",
+        translation_key="hours_since_maintenance",
+        device_class=SensorDeviceClass.DURATION,
+        native_unit_of_measurement=UnitOfTime.HOURS,
+        # Reset by the service technician; HA treats the drop as a new cycle.
+        state_class=SensorStateClass.TOTAL_INCREASING,
+        entity_category=EntityCategory.DIAGNOSTIC,
+    ),
+    FroelingSensorDescription(
+        key="induced_draft_control",
+        translation_key="induced_draft_control",
+        native_unit_of_measurement=PERCENTAGE,
+        state_class=SensorStateClass.MEASUREMENT,
+    ),
 )
 
 HEATING_CIRCUIT_SENSORS: tuple[FroelingSensorDescription, ...] = (
@@ -196,6 +223,77 @@ BUFFER_SENSORS: tuple[FroelingSensorDescription, ...] = (
         native_unit_of_measurement=PERCENTAGE,
         state_class=SensorStateClass.MEASUREMENT,
     ),
+    FroelingSensorDescription(
+        key="charge",
+        translation_key="charge",
+        native_unit_of_measurement=PERCENTAGE,
+        state_class=SensorStateClass.MEASUREMENT,
+    ),
+    # Boiler setpoint minus the boiler start difference of this buffer.
+    FroelingSensorDescription(
+        key="ignition_below_buffer_temperature",
+        translation_key="ignition_below_buffer_temperature",
+        device_class=SensorDeviceClass.TEMPERATURE,
+        native_unit_of_measurement=UnitOfTemperature.CELSIUS,
+        entity_category=EntityCategory.DIAGNOSTIC,
+        entity_registry_enabled_default=False,
+    ),
+)
+
+CIRCULATION_SENSORS: tuple[FroelingSensorDescription, ...] = (
+    FroelingSensorDescription(
+        key="pump",
+        translation_key="pump",
+        native_unit_of_measurement=PERCENTAGE,
+        state_class=SensorStateClass.MEASUREMENT,
+    ),
+    # Modbus reports no return temperature without a configured sensor (40603 = 0); Fröling
+    # Connect reports 0 then, so the cloud value starts disabled.
+    FroelingSensorDescription(
+        key="return_temperature",
+        translation_key="return_temperature",
+        device_class=SensorDeviceClass.TEMPERATURE,
+        native_unit_of_measurement=UnitOfTemperature.CELSIUS,
+        state_class=SensorStateClass.MEASUREMENT,
+        requires_value=True,
+        enabled_from_cloud=False,
+    ),
+)
+
+
+@dataclass(frozen=True, kw_only=True)
+class FroelingCloudInfoSensorDescription(SensorEntityDescription):
+    """Sensor showing system information or the connection state from Fröling Connect."""
+
+    value_fn: Callable[[CloudInfo], StateType | datetime]
+
+
+CLOUD_INFO_SENSORS: tuple[FroelingCloudInfoSensorDescription, ...] = (
+    FroelingCloudInfoSensorDescription(
+        key="partial_load_hours",
+        translation_key="partial_load_hours",
+        device_class=SensorDeviceClass.DURATION,
+        native_unit_of_measurement=UnitOfTime.HOURS,
+        state_class=SensorStateClass.TOTAL_INCREASING,
+        entity_category=EntityCategory.DIAGNOSTIC,
+        value_fn=lambda info: info.system.partial_load_hours,
+    ),
+    FroelingCloudInfoSensorDescription(
+        key="connected_since",
+        translation_key="connected_since",
+        device_class=SensorDeviceClass.TIMESTAMP,
+        entity_category=EntityCategory.DIAGNOSTIC,
+        entity_registry_enabled_default=False,
+        value_fn=lambda info: info.system.connected_since,
+    ),
+    FroelingCloudInfoSensorDescription(
+        key="last_signal",
+        translation_key="last_signal",
+        device_class=SensorDeviceClass.TIMESTAMP,
+        entity_category=EntityCategory.DIAGNOSTIC,
+        entity_registry_enabled_default=False,
+        value_fn=lambda info: info.header.last_signal,
+    ),
 )
 
 CURVE_FLOW = SensorEntityDescription(
@@ -218,8 +316,9 @@ async def async_setup_entry(
     data = entry.runtime_data
     sources = data.sources
     entities: list[SensorEntity] = _sensors(sources, BOILER_COMPONENT, BOILER_SENSORS)
-    if data.values is not None:
-        entities.append(FroelingFaultSensor(sources, BOILER_COMPONENT))
+    entities.append(FroelingFaultSensor(sources, data.values is not None, data.cloud is not None))
+    if data.cloud_info is not None:
+        entities += [FroelingCloudInfoSensor(sources, description) for description in CLOUD_INFO_SENSORS]
     for n in data.equipment.heating_circuits:
         component = Component(ComponentKind.HEATING_CIRCUIT, n)
         entities += _sensors(sources, component, HEATING_CIRCUIT_SENSORS)
@@ -229,6 +328,8 @@ async def async_setup_entry(
         entities += _sensors(sources, Component(ComponentKind.HOT_WATER, n), HOT_WATER_SENSORS)
     for n in data.equipment.buffers:
         entities += _sensors(sources, Component(ComponentKind.BUFFER, n), BUFFER_SENSORS)
+    if data.equipment.circulation_pump:
+        entities += _sensors(sources, CIRCULATION_COMPONENT, CIRCULATION_SENSORS)
     async_add_entities(entities)
 
 
@@ -238,7 +339,8 @@ def _sensors(
     return [
         FroelingSensor(sources, component, description, source)
         for description in descriptions
-        if (source := sources.source(_value_key(component, description))) is not None
+        if (source := sources.source(key := _value_key(component, description))) is not None
+        and (not description.requires_value or sources.value(key) is not None)
     ]
 
 
@@ -262,6 +364,8 @@ class FroelingSensor(FroelingEntity, SensorEntity):
             sources, component, description.key, source, value_key=_value_key(component, description)
         )
         self.entity_description = description
+        if source is Source.CLOUD and not description.enabled_from_cloud:
+            self._attr_entity_registry_enabled_default = False
 
     @property
     def native_value(self) -> StateType:
@@ -269,28 +373,95 @@ class FroelingSensor(FroelingEntity, SensorEntity):
         return self.entity_description.convert(self.flat_value)
 
 
+class FroelingCloudInfoSensor(FroelingEntity, SensorEntity):
+    """System information or connection state of the boiler from Fröling Connect."""
+
+    entity_description: FroelingCloudInfoSensorDescription
+
+    def __init__(self, sources: FroelingSources, description: FroelingCloudInfoSensorDescription) -> None:
+        super().__init__(sources, BOILER_COMPONENT, description.key, Source.CLOUD_INFO)
+        self.entity_description = description
+
+    @property
+    def native_value(self) -> StateType | datetime:
+        """Current value."""
+        return self.entity_description.value_fn(self.coordinator.data)
+
+
 class FroelingFaultSensor(FroelingEntity, SensorEntity):
-    """Text of the first entry in the Modbus error buffer; further entries as attribute."""
+    """Current fault as text.
+
+    With Modbus: the first entry of the error buffer, further entries as attribute. Connect only:
+    the newest message of the error history while the boiler is in a fault state. With Connect the
+    time of the newest message and the last ten messages are attributes as well.
+    """
 
     entity_description = FAULT
+    # The history only grows with new messages; recording it with every state wastes space.
+    _unrecorded_attributes = frozenset({"since", "history"})
 
-    def __init__(self, sources: FroelingSources, component: Component) -> None:
-        super().__init__(sources, component, FAULT.key, Source.MODBUS_VALUES)
+    def __init__(self, sources: FroelingSources, modbus: bool, cloud: bool) -> None:
+        source = Source.MODBUS_VALUES if modbus else Source.CLOUD
+        super().__init__(sources, BOILER_COMPONENT, FAULT.key, source, value_key="boiler_state")
+        self._modbus = modbus
+        self._cloud = sources.coordinator(Source.CLOUD) if cloud else None
+        if self._cloud is not None:
+            # Next to Modbus the history is an addition: the sensor stays available without it.
+            self.follow(self._cloud, required=False)
 
     @property
     def native_value(self) -> str:
-        """Text of the first error or 'Keine Störung'."""
-        errors = self.coordinator.data.errors
-        return error_text(errors[0]) if errors else NO_FAULT
+        """Text of the current fault or 'Keine Störung'."""
+        if self._modbus:
+            errors = self.coordinator.data.errors
+            return error_text(errors[0]) if errors else NO_FAULT
+        state = self.sources.value("boiler_state")
+        if not isinstance(state, int) or state not in FAULT_BOILER_STATES:
+            return NO_FAULT
+        history = _history(self._cloud_errors)
+        return history[0].message if history else boiler_state_text(state)
 
     @property
     def extra_state_attributes(self) -> dict[str, Any]:
-        """Error code of the first entry and texts of further entries."""
-        errors = self.coordinator.data.errors
-        return {
-            "error_code": errors[0] if errors else None,
-            "more_errors": [error_text(code) for code in errors[1:]],
-        }
+        """Error code and further errors (Modbus); time of the fault and history (Connect)."""
+        attributes: dict[str, Any] = {}
+        if self._modbus:
+            errors = self.coordinator.data.errors
+            attributes["error_code"] = errors[0] if errors else None
+            attributes["more_errors"] = [error_text(code) for code in errors[1:]]
+        if self._cloud is not None:
+            history = _history(self._cloud_errors)
+            since = history[0].timestamp if history and self._fault_active else None
+            attributes["since"] = None if since is None else since.isoformat()
+            attributes["history"] = [
+                {
+                    "time": None if error.timestamp is None else error.timestamp.isoformat(),
+                    "severity": error.severity,
+                    "message": error.message,
+                }
+                for error in history
+            ]
+        return attributes
+
+    @property
+    def _fault_active(self) -> bool:
+        if self._modbus:
+            return bool(self.coordinator.data.fault_active)
+        return self.native_value != NO_FAULT
+
+    @property
+    def _cloud_errors(self) -> tuple[CloudError, ...]:
+        cloud = self._cloud
+        return () if cloud is None or cloud.data is None else cloud.data.errors
+
+
+def _history(errors: tuple[CloudError, ...]) -> list[CloudError]:
+    """The newest ten messages, newest first; messages without a time last."""
+    return sorted(
+        errors,
+        key=lambda e: (e.timestamp is not None, 0.0 if e.timestamp is None else e.timestamp.timestamp()),
+        reverse=True,
+    )[:HISTORY_LENGTH]
 
 
 class FroelingCurveSensor(FroelingEntity, SensorEntity):

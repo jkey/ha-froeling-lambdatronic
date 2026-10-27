@@ -128,13 +128,20 @@ class FroelingEntity(CoordinatorEntity[DataUpdateCoordinator[Any]]):
         self.source = source
         self.value_key = value_key or component.key_prefix + key
         self._followed: list[DataUpdateCoordinator[Any]] = []
+        self._required: list[DataUpdateCoordinator[Any]] = []
         self._attr_unique_id = f"{entry.entry_id}_{component.key_prefix}{key}"
         self._attr_device_info = device_info(entry, component)
 
-    def follow(self, coordinator: DataUpdateCoordinator[Any]) -> None:
-        """Also update with, and require the availability of, another coordinator."""
-        if coordinator is not self.coordinator and coordinator not in self._followed:
-            self._followed.append(coordinator)
+    def follow(self, coordinator: DataUpdateCoordinator[Any], *, required: bool = True) -> None:
+        """Also update with another coordinator; the entity needs a required one to be available.
+
+        Example: the curve sensor needs the outside temperature and the curve settings.
+        """
+        if coordinator is self.coordinator or coordinator in self._followed:
+            return
+        self._followed.append(coordinator)
+        if required:
+            self._required.append(coordinator)
 
     async def async_added_to_hass(self) -> None:
         """Listen to the followed coordinators as well."""
@@ -148,8 +155,8 @@ class FroelingEntity(CoordinatorEntity[DataUpdateCoordinator[Any]]):
 
     @property
     def available(self) -> bool:
-        """Available while all used coordinators succeed."""
-        return super().available and all(c.last_update_success for c in self._followed)
+        """Available while all required coordinators succeed."""
+        return super().available and all(c.last_update_success for c in self._required)
 
     @property
     def flat_value(self) -> FlatValue:

@@ -6,6 +6,12 @@
         "state": {
           "on": "mdi:fire"
         }
+      },
+      "flow_switch": {
+        "default": "mdi:water-off",
+        "state": {
+          "on": "mdi:water"
+        }
       }
     },
     "button": {
@@ -98,6 +104,24 @@
       },
       "pump": {
         "default": "mdi:pump"
+      },
+      "hours_since_maintenance": {
+        "default": "mdi:wrench-clock"
+      },
+      "induced_draft_control": {
+        "default": "mdi:fan"
+      },
+      "partial_load_hours": {
+        "default": "mdi:timer-outline"
+      },
+      "connected_since": {
+        "default": "mdi:cloud-check-outline"
+      },
+      "last_signal": {
+        "default": "mdi:cloud-clock-outline"
+      },
+      "charge": {
+        "default": "mdi:gauge"
       }
     }
   }
