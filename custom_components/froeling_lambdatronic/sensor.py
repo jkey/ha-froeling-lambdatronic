@@ -2,9 +2,10 @@
 
 from collections.abc import Callable
 from dataclasses import dataclass
+from datetime import time
 from typing import Any
 
-from froeling_lambdatronic import LambdatronicValues, error_text
+from froeling_lambdatronic import FlatValue, HeatingCircuitParameters, error_text
 from homeassistant.components.sensor import (
     SensorDeviceClass,
     SensorEntity,
@@ -19,29 +20,37 @@ from homeassistant.const import (
     UnitOfTemperature,
     UnitOfTime,
 )
-from homeassistant.core import HomeAssistant, callback
+from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 from homeassistant.helpers.typing import StateType
 
 from .const import BOILER_STATE_KEYS, SYSTEM_STATE_KEYS
-from .coordinator import FroelingConfigEntry, ParametersCoordinator, ValuesCoordinator
+from .coordinator import FroelingConfigEntry
 from .entity import BOILER_COMPONENT, Component, ComponentKind, FroelingEntity
+from .sources import FroelingSources, Source
 
 PARALLEL_UPDATES = 0
 
 NO_FAULT = "Keine Störung"
 
 
+def _state(value: FlatValue) -> StateType:
+    return None if isinstance(value, time) else value
+
+
 @dataclass(frozen=True, kw_only=True)
 class FroelingSensorDescription(SensorEntityDescription):
-    """Sensor reading one value of a component (number 0 for the boiler)."""
+    """Sensor reading one value of a component.
 
-    value_fn: Callable[[LambdatronicValues, int], StateType]
+    `value_key` is the library key without the component prefix (defaults to `key`);
+    `convert` turns the library value into the state.
+    """
+
+    value_key: str | None = None
+    convert: Callable[[FlatValue], StateType] = _state
 
 
-def _temperature(
-    key: str, value_fn: Callable[[LambdatronicValues, int], StateType], *, enabled: bool = True
-) -> FroelingSensorDescription:
+def _temperature(key: str, *, enabled: bool = True) -> FroelingSensorDescription:
     return FroelingSensorDescription(
         key=key,
         translation_key=key,
@@ -49,47 +58,49 @@ def _temperature(
         native_unit_of_measurement=UnitOfTemperature.CELSIUS,
         state_class=SensorStateClass.MEASUREMENT,
         entity_registry_enabled_default=enabled,
-        value_fn=value_fn,
     )
 
 
-def _state_key(keys: dict[int, str], code: int | None) -> str | None:
-    return None if code is None else keys.get(code)
+def _state_key(keys: dict[int, str]) -> Callable[[FlatValue], str | None]:
+    def convert(code: FlatValue) -> str | None:
+        return keys.get(code) if isinstance(code, int) else None
+
+    return convert
+
+
+def _tonnes_to_kg(value: FlatValue) -> int | None:
+    return None if not isinstance(value, float | int) else round(value * 1000)
 
 
 BOILER_SENSORS: tuple[FroelingSensorDescription, ...] = (
-    _temperature("boiler_temperature", lambda v, _: v.boiler_temperature),
-    _temperature("boiler_setpoint_calculated", lambda v, _: v.boiler_setpoint_calculated),
-    _temperature("flue_gas_temperature", lambda v, _: v.flue_gas_temperature),
-    _temperature("return_temperature", lambda v, _: v.return_temperature, enabled=False),
-    _temperature("outside_temperature", lambda v, _: v.outside_temperature),
+    _temperature("boiler_temperature"),
+    _temperature("boiler_setpoint_calculated"),
+    _temperature("flue_gas_temperature"),
+    _temperature("return_temperature", enabled=False),
+    _temperature("outside_temperature"),
     FroelingSensorDescription(
         key="residual_oxygen",
         translation_key="residual_oxygen",
         native_unit_of_measurement=PERCENTAGE,
         state_class=SensorStateClass.MEASUREMENT,
-        value_fn=lambda v, _: v.residual_oxygen,
     ),
     FroelingSensorDescription(
         key="induced_draft_speed",
         translation_key="induced_draft_speed",
         native_unit_of_measurement=REVOLUTIONS_PER_MINUTE,
         state_class=SensorStateClass.MEASUREMENT,
-        value_fn=lambda v, _: v.induced_draft_speed,
     ),
     FroelingSensorDescription(
         key="feed_rate",
         translation_key="feed_rate",
         native_unit_of_measurement=PERCENTAGE,
         state_class=SensorStateClass.MEASUREMENT,
-        value_fn=lambda v, _: v.feed_rate,
     ),
     FroelingSensorDescription(
-        key="boiler_output",
-        translation_key="boiler_output",
+        key="boiler_control_output",
+        translation_key="boiler_control_output",
         native_unit_of_measurement=PERCENTAGE,
         state_class=SensorStateClass.MEASUREMENT,
-        value_fn=lambda v, _: v.boiler_output,
     ),
     FroelingSensorDescription(
         key="pellet_hopper_level",
@@ -97,7 +108,6 @@ BOILER_SENSORS: tuple[FroelingSensorDescription, ...] = (
         native_unit_of_measurement=PERCENTAGE,
         state_class=SensorStateClass.MEASUREMENT,
         suggested_display_precision=0,
-        value_fn=lambda v, _: v.pellet_hopper_level,
     ),
     FroelingSensorDescription(
         key="pellet_consumption_total",
@@ -106,31 +116,28 @@ BOILER_SENSORS: tuple[FroelingSensorDescription, ...] = (
         native_unit_of_measurement=UnitOfMass.KILOGRAMS,
         state_class=SensorStateClass.TOTAL_INCREASING,
         suggested_display_precision=0,
-        value_fn=lambda v, _: (
-            None if v.pellet_consumption_total is None else round(v.pellet_consumption_total * 1000)
-        ),
+        convert=_tonnes_to_kg,
     ),
     FroelingSensorDescription(
-        key="pellet_counter_kg",
-        translation_key="pellet_counter_kg",
+        key="pellet_counter",
+        translation_key="pellet_counter",
         device_class=SensorDeviceClass.WEIGHT,
         native_unit_of_measurement=UnitOfMass.KILOGRAMS,
         state_class=SensorStateClass.TOTAL_INCREASING,
-        value_fn=lambda v, _: v.pellet_counter_kg,
     ),
     FroelingSensorDescription(
         key="system_state",
         translation_key="system_state",
         device_class=SensorDeviceClass.ENUM,
         options=list(SYSTEM_STATE_KEYS.values()),
-        value_fn=lambda v, _: _state_key(SYSTEM_STATE_KEYS, v.system_state),
+        convert=_state_key(SYSTEM_STATE_KEYS),
     ),
     FroelingSensorDescription(
         key="boiler_state",
         translation_key="boiler_state",
         device_class=SensorDeviceClass.ENUM,
         options=list(BOILER_STATE_KEYS.values()),
-        value_fn=lambda v, _: _state_key(BOILER_STATE_KEYS, v.boiler_state),
+        convert=_state_key(BOILER_STATE_KEYS),
     ),
     FroelingSensorDescription(
         key="operating_hours",
@@ -139,7 +146,6 @@ BOILER_SENSORS: tuple[FroelingSensorDescription, ...] = (
         native_unit_of_measurement=UnitOfTime.HOURS,
         state_class=SensorStateClass.TOTAL_INCREASING,
         entity_category=EntityCategory.DIAGNOSTIC,
-        value_fn=lambda v, _: v.operating_hours,
     ),
     FroelingSensorDescription(
         key="heating_hours",
@@ -148,14 +154,12 @@ BOILER_SENSORS: tuple[FroelingSensorDescription, ...] = (
         native_unit_of_measurement=UnitOfTime.HOURS,
         state_class=SensorStateClass.TOTAL_INCREASING,
         entity_category=EntityCategory.DIAGNOSTIC,
-        value_fn=lambda v, _: v.heating_hours,
     ),
     FroelingSensorDescription(
         key="burner_starts",
         translation_key="burner_starts",
         state_class=SensorStateClass.TOTAL_INCREASING,
         entity_category=EntityCategory.DIAGNOSTIC,
-        value_fn=lambda v, _: v.burner_starts,
     ),
     FroelingSensorDescription(
         key="hours_until_ash_emptying",
@@ -164,40 +168,33 @@ BOILER_SENSORS: tuple[FroelingSensorDescription, ...] = (
         native_unit_of_measurement=UnitOfTime.HOURS,
         state_class=SensorStateClass.MEASUREMENT,
         entity_category=EntityCategory.DIAGNOSTIC,
-        value_fn=lambda v, _: v.hours_until_ash_emptying,
     ),
 )
 
 HEATING_CIRCUIT_SENSORS: tuple[FroelingSensorDescription, ...] = (
-    _temperature("flow_temperature", lambda v, n: v.heating_circuits[n].flow_temperature),
-    _temperature("flow_setpoint", lambda v, n: v.heating_circuits[n].flow_setpoint),
-    _temperature(
-        "room_temperature",
-        lambda v, n: v.heating_circuits[n].room_temperature,
-        enabled=False,
-    ),
+    _temperature("flow_temperature"),
+    _temperature("flow_setpoint"),
+    _temperature("room_temperature", enabled=False),
 )
 
 HOT_WATER_SENSORS: tuple[FroelingSensorDescription, ...] = (
-    _temperature("temperature", lambda v, n: v.hot_water[n].temperature),
+    _temperature("temperature"),
     FroelingSensorDescription(
         key="pump",
         translation_key="pump",
         native_unit_of_measurement=PERCENTAGE,
         state_class=SensorStateClass.MEASUREMENT,
-        value_fn=lambda v, n: v.hot_water[n].pump,
     ),
 )
 
 BUFFER_SENSORS: tuple[FroelingSensorDescription, ...] = (
-    _temperature("top", lambda v, n: v.buffers[n].top),
-    _temperature("bottom", lambda v, n: v.buffers[n].bottom),
+    _temperature("top"),
+    _temperature("bottom"),
     FroelingSensorDescription(
         key="pump",
         translation_key="pump",
         native_unit_of_measurement=PERCENTAGE,
         state_class=SensorStateClass.MEASUREMENT,
-        value_fn=lambda v, n: v.buffers[n].pump,
     ),
 )
 
@@ -217,51 +214,68 @@ async def async_setup_entry(
     entry: FroelingConfigEntry,
     async_add_entities: AddConfigEntryEntitiesCallback,
 ) -> None:
-    """Set up the sensors."""
+    """Set up the sensors of every value that has a source."""
     data = entry.runtime_data
-    values = data.values
-    entities: list[SensorEntity] = [
-        FroelingSensor(values, BOILER_COMPONENT, description) for description in BOILER_SENSORS
-    ]
-    entities.append(FroelingFaultSensor(values, BOILER_COMPONENT, FAULT))
+    sources = data.sources
+    entities: list[SensorEntity] = _sensors(sources, BOILER_COMPONENT, BOILER_SENSORS)
+    if data.values is not None:
+        entities.append(FroelingFaultSensor(sources, BOILER_COMPONENT))
     for n in data.equipment.heating_circuits:
         component = Component(ComponentKind.HEATING_CIRCUIT, n)
-        entities += [FroelingSensor(values, component, d) for d in HEATING_CIRCUIT_SENSORS]
-        entities.append(FroelingCurveSensor(values, data.parameters, component))
+        entities += _sensors(sources, component, HEATING_CIRCUIT_SENSORS)
+        if (curve := FroelingCurveSensor.create(sources, component)) is not None:
+            entities.append(curve)
     for n in data.equipment.hot_water:
-        component = Component(ComponentKind.HOT_WATER, n)
-        entities += [FroelingSensor(values, component, d) for d in HOT_WATER_SENSORS]
+        entities += _sensors(sources, Component(ComponentKind.HOT_WATER, n), HOT_WATER_SENSORS)
     for n in data.equipment.buffers:
-        component = Component(ComponentKind.BUFFER, n)
-        entities += [FroelingSensor(values, component, d) for d in BUFFER_SENSORS]
+        entities += _sensors(sources, Component(ComponentKind.BUFFER, n), BUFFER_SENSORS)
     async_add_entities(entities)
 
 
-class FroelingSensor(FroelingEntity[ValuesCoordinator], SensorEntity):
+def _sensors(
+    sources: FroelingSources, component: Component, descriptions: tuple[FroelingSensorDescription, ...]
+) -> list[SensorEntity]:
+    return [
+        FroelingSensor(sources, component, description, source)
+        for description in descriptions
+        if (source := sources.source(_value_key(component, description))) is not None
+    ]
+
+
+def _value_key(component: Component, description: FroelingSensorDescription) -> str:
+    return component.key_prefix + (description.value_key or description.key)
+
+
+class FroelingSensor(FroelingEntity, SensorEntity):
     """Sensor for one value of a component."""
 
     entity_description: FroelingSensorDescription
 
     def __init__(
-        self, coordinator: ValuesCoordinator, component: Component, description: FroelingSensorDescription
+        self,
+        sources: FroelingSources,
+        component: Component,
+        description: FroelingSensorDescription,
+        source: Source,
     ) -> None:
-        super().__init__(coordinator, component, description.key)
+        super().__init__(
+            sources, component, description.key, source, value_key=_value_key(component, description)
+        )
         self.entity_description = description
 
     @property
     def native_value(self) -> StateType:
         """Current value."""
-        return self.entity_description.value_fn(self.coordinator.data, self.component.number)
+        return self.entity_description.convert(self.flat_value)
 
 
-class FroelingFaultSensor(FroelingEntity[ValuesCoordinator], SensorEntity):
-    """Text of the first entry in the error buffer; further entries as attribute."""
+class FroelingFaultSensor(FroelingEntity, SensorEntity):
+    """Text of the first entry in the Modbus error buffer; further entries as attribute."""
 
-    def __init__(
-        self, coordinator: ValuesCoordinator, component: Component, description: SensorEntityDescription
-    ) -> None:
-        super().__init__(coordinator, component, description.key)
-        self.entity_description = description
+    entity_description = FAULT
+
+    def __init__(self, sources: FroelingSources, component: Component) -> None:
+        super().__init__(sources, component, FAULT.key, Source.MODBUS_VALUES)
 
     @property
     def native_value(self) -> str:
@@ -279,43 +293,65 @@ class FroelingFaultSensor(FroelingEntity[ValuesCoordinator], SensorEntity):
         }
 
 
-class FroelingCurveSensor(FroelingEntity[ValuesCoordinator], SensorEntity):
+class FroelingCurveSensor(FroelingEntity, SensorEntity):
     """Flow temperature of the heating curve at the current outside temperature."""
 
     entity_description = CURVE_FLOW
     # The curve only changes with the parameters; recording it with every state wastes space.
     _unrecorded_attributes = frozenset({"curve"})
 
+    @classmethod
+    def create(cls, sources: FroelingSources, component: Component) -> FroelingCurveSensor | None:
+        """The sensor if the outside temperature and both curve points have a source."""
+        keys = [f"{component.key_prefix}curve_flow_plus10", f"{component.key_prefix}curve_flow_minus10"]
+        if (outside := sources.source("outside_temperature")) is None or any(
+            sources.source(key) is None for key in keys
+        ):
+            return None
+        return cls(sources, component, outside, keys)
+
     def __init__(
-        self, coordinator: ValuesCoordinator, parameters: ParametersCoordinator, component: Component
+        self, sources: FroelingSources, component: Component, outside: Source, curve_keys: list[str]
     ) -> None:
-        super().__init__(coordinator, component, CURVE_FLOW.key)
-        self._parameters = parameters
+        # The outside temperature is a system value without a component prefix.
+        super().__init__(sources, component, CURVE_FLOW.key, outside, value_key="outside_temperature")
+        for key in curve_keys:
+            source = sources.source(key)
+            assert source is not None
+            self.follow(sources.coordinator(source))
 
-    async def async_added_to_hass(self) -> None:
-        """Also follow the parameters coordinator."""
-        await super().async_added_to_hass()
-        self.async_on_remove(self._parameters.async_add_listener(self._handle_parameters_update))
+    def _parameters(self) -> HeatingCircuitParameters:
+        """The curve settings of this circuit; the library computes the curve from them."""
+        prefix = self.component.key_prefix
 
-    @callback
-    def _handle_parameters_update(self) -> None:
-        self.async_write_ha_state()
+        def number(key: str) -> float | None:
+            value = self.sources.value(prefix + key)
+            return float(value) if isinstance(value, float | int) else None
 
-    @property
-    def available(self) -> bool:
-        """Needs both current values and parameters."""
-        return super().available and self._parameters.last_update_success
+        return HeatingCircuitParameters(
+            curve_flow_plus10=number("curve_flow_plus10"),
+            curve_flow_minus10=number("curve_flow_minus10"),
+            setback=None,
+            max_flow=number("max_flow"),
+            heating_limit=None,
+            heating_limit_setback=None,
+            operating_mode=None,
+            room_setpoint_heating=None,
+            room_setpoint_setback=None,
+            frost_protection=None,
+            pump_off_below_flow_setpoint=None,
+            buffer_overheat_protection=None,
+        )
 
     @property
     def native_value(self) -> float | None:
         """Flow temperature for the current outside temperature."""
-        outside = self.coordinator.data.outside_temperature
-        if outside is None:
+        outside = self.flat_value
+        if not isinstance(outside, float | int):
             return None
-        return self._parameters.data.heating_circuits[self.component.number].flow_for_outside(outside)
+        return self._parameters().flow_for_outside(outside)
 
     @property
     def extra_state_attributes(self) -> dict[str, Any]:
         """Points of the heating curve from -20 to +20 °C."""
-        curve = self._parameters.data.heating_circuits[self.component.number].curve()
-        return {"curve": [{"outside": outside, "flow": flow} for outside, flow in curve]}
+        return {"curve": [{"outside": outside, "flow": flow} for outside, flow in self._parameters().curve()]}

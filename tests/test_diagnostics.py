@@ -34,15 +34,29 @@ async def test_diagnostics_without_cloud(
     hass: HomeAssistant,
     hass_client: ClientSessionGenerator,
     mock_client: MagicMock,
-    mock_config_entry_local: MockConfigEntry,
+    mock_config_entry_modbus: MockConfigEntry,
 ) -> None:
     """Without Fröling Connect the cloud section is empty."""
-    await setup_integration(hass, mock_config_entry_local)
+    await setup_integration(hass, mock_config_entry_modbus)
 
-    result = await get_diagnostics_for_config_entry(hass, hass_client, mock_config_entry_local)
+    result = await get_diagnostics_for_config_entry(hass, hass_client, mock_config_entry_modbus)
 
     assert isinstance(result, dict)
     assert result["cloud"] is None
     values = result["values"]
     assert isinstance(values, dict)
     assert values["raw"] == {"30001": 126, "34001": 2, "34002": 19}
+
+
+@pytest.mark.usefixtures("mock_cloud")
+async def test_diagnostics_cloud_only(
+    hass: HomeAssistant, hass_client: ClientSessionGenerator, mock_config_entry_cloud: MockConfigEntry
+) -> None:
+    """Without Modbus the Modbus sections are empty."""
+    await setup_integration(hass, mock_config_entry_cloud)
+
+    result = await get_diagnostics_for_config_entry(hass, hass_client, mock_config_entry_cloud)
+
+    assert isinstance(result, dict)
+    assert result["values"] is None
+    assert result["parameters"] is None

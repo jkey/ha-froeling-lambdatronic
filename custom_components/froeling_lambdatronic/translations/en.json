@@ -119,10 +119,13 @@
       "name": "Heating circuit {number}"
     },
     "hot_water": {
-      "name": "Hot water {number}"
+      "name": "DHW tank {number}"
     },
     "buffer": {
       "name": "Buffer {number}"
+    },
+    "circulation_pump": {
+      "name": "Circulation pump"
     }
   },
   "entity": {
@@ -217,17 +220,11 @@
       "feed_rate": {
         "name": "Feed rate"
       },
-      "boiler_output": {
-        "name": "Boiler output"
-      },
       "pellet_hopper_level": {
         "name": "Pellet hopper level"
       },
       "pellet_consumption_total": {
         "name": "Pellet consumption"
-      },
-      "pellet_counter_kg": {
-        "name": "Pellet counter"
       },
       "system_state": {
         "name": "System state",
@@ -382,6 +379,12 @@
       },
       "bottom": {
         "name": "Temperature bottom"
+      },
+      "boiler_control_output": {
+        "name": "Boiler control output"
+      },
+      "pellet_counter": {
+        "name": "Pellet counter"
       }
     }
   },
@@ -414,10 +417,13 @@
       "message": "Remote control via Fröling Connect is disabled."
     },
     "cloud_write_failed": {
-      "message": "Switching via Fröling Connect failed: {error}"
+      "message": "Writing via Fröling Connect failed: {error}"
     },
     "parameters_read_failed": {
       "message": "Reading the parameters failed: {error}"
+    },
+    "not_writable": {
+      "message": "{key} cannot be written with this connection."
     }
   },
   "issues": {
@@ -427,7 +433,7 @@
     },
     "remote_control_disabled": {
       "title": "{name}: remote control via Fröling Connect disabled",
-      "description": "The system operating mode cannot be switched from Home Assistant. Enable 'Fernschalten über connect möglich' at the boiler (Connect settings) or in the Fröling Connect app. This message disappears automatically afterwards."
+      "description": "Settings cannot be changed via Fröling Connect from Home Assistant; the affected entities are unavailable. Enable 'Fernschalten über connect möglich' at the boiler (Connect settings) or in the Fröling Connect app. This message disappears automatically afterwards."
     }
   }
 }

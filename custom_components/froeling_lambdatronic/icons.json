@@ -69,7 +69,7 @@
       "feed_rate": {
         "default": "mdi:transfer-right"
       },
-      "boiler_output": {
+      "boiler_control_output": {
         "default": "mdi:fire"
       },
       "pellet_hopper_level": {
@@ -78,7 +78,7 @@
       "pellet_consumption_total": {
         "default": "mdi:grain"
       },
-      "pellet_counter_kg": {
+      "pellet_counter": {
         "default": "mdi:counter"
       },
       "system_state": {

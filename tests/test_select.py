@@ -29,7 +29,7 @@ from . import setup_integration
 from .const import FACILITY_ID, PARAMETERS, VALUES
 
 SYSTEM_MODE = "select.froling_pe1_system_operating_mode"
-HC1_MODE = "select.froling_pe1_heating_circuit_1_operating_mode"
+HC1_MODE = "select.froling_pe1_heating_circuit_01_operating_mode"
 
 
 @pytest.fixture(autouse=True)
@@ -44,11 +44,11 @@ async def test_entities(
     hass: HomeAssistant,
     entity_registry: er.EntityRegistry,
     snapshot: SnapshotAssertion,
-    mock_config_entry: MockConfigEntry,
+    any_config_entry: MockConfigEntry,
 ) -> None:
-    """All select entities with their registry entries and states."""
-    await setup_integration(hass, mock_config_entry)
-    await snapshot_platform(hass, entity_registry, snapshot, mock_config_entry.entry_id)
+    """All select entities with their registry entries and states. for every connection type."""
+    await setup_integration(hass, any_config_entry)
+    await snapshot_platform(hass, entity_registry, snapshot, any_config_entry.entry_id)
 
 
 async def _select(hass: HomeAssistant, entity_id: str, option: str) -> None:
@@ -59,34 +59,34 @@ async def _select(hass: HomeAssistant, entity_id: str, option: str) -> None:
 
 @pytest.mark.usefixtures("mock_client")
 async def test_no_system_mode_without_cloud(
-    hass: HomeAssistant, mock_config_entry_local: MockConfigEntry
+    hass: HomeAssistant, mock_config_entry_modbus: MockConfigEntry
 ) -> None:
     """Without Fröling Connect there is no system operating mode select."""
-    await setup_integration(hass, mock_config_entry_local)
+    await setup_integration(hass, mock_config_entry_modbus)
     assert hass.states.get(SYSTEM_MODE) is None
     assert hass.states.get(HC1_MODE) is not None
 
 
 async def test_heating_circuit_mode(
-    hass: HomeAssistant, mock_client: MagicMock, mock_config_entry_local: MockConfigEntry
+    hass: HomeAssistant, mock_client: MagicMock, mock_config_entry_modbus: MockConfigEntry
 ) -> None:
     """The heating circuit mode is written via Modbus."""
-    await setup_integration(hass, mock_config_entry_local)
+    await setup_integration(hass, mock_config_entry_modbus)
 
     await _select(hass, HC1_MODE, "party")
 
-    mock_client.write.assert_awaited_once_with(heating_circuit(1).operating_mode, 5)
+    mock_client.write.assert_awaited_once_with(heating_circuit(1).operating_mode, 5.0)
 
 
 async def test_heating_circuit_mode_unknown(
-    hass: HomeAssistant, mock_client: MagicMock, mock_config_entry_local: MockConfigEntry
+    hass: HomeAssistant, mock_client: MagicMock, mock_config_entry_modbus: MockConfigEntry
 ) -> None:
     """An unknown mode read from the boiler is shown as unknown."""
     hc1 = replace(PARAMETERS.heating_circuits[1], operating_mode=None)
     mock_client.read_parameters.return_value = replace(
         PARAMETERS, heating_circuits={**PARAMETERS.heating_circuits, 1: hc1}
     )
-    await setup_integration(hass, mock_config_entry_local)
+    await setup_integration(hass, mock_config_entry_modbus)
     state = hass.states.get(HC1_MODE)
     assert state is not None
     assert state.state == STATE_UNKNOWN
@@ -104,7 +104,7 @@ async def test_system_mode(
 
     await _select(hass, SYSTEM_MODE, "domestic_hot_water")
 
-    mock_cloud.set_operating_mode.assert_awaited_once_with(FACILITY_ID, OperatingMode.DOMESTIC_HOT_WATER)
+    mock_cloud.set_value.assert_awaited_once_with(FACILITY_ID, "system_state", 1)
     assert mock_client.read_values.await_count > reads
 
 
@@ -164,7 +164,7 @@ async def test_system_mode_errors(
 ) -> None:
     """Cloud errors become translated errors; side effects follow the error kind."""
     await setup_integration(hass, mock_config_entry)
-    mock_cloud.set_operating_mode.side_effect = error
+    mock_cloud.set_value.side_effect = error
     if isinstance(error, RemoteControlDisabledError):
         mock_cloud.get_boiler_state.return_value = CloudBoilerState(OperatingMode.AUTOMATIC, False)
 
@@ -188,7 +188,7 @@ async def test_system_mode_unavailable_after_remote_control_disabled(
     state = hass.states.get(SYSTEM_MODE)
     assert state is not None
     assert state.state == "automatic"
-    mock_cloud.set_operating_mode.side_effect = RemoteControlDisabledError("off")
+    mock_cloud.set_value.side_effect = RemoteControlDisabledError("off")
     mock_cloud.get_boiler_state.return_value = CloudBoilerState(OperatingMode.AUTOMATIC, False)
 
     with pytest.raises(HomeAssistantError):

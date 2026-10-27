@@ -1,5 +1,5 @@
 # serializer version: 1
-# name: test_entities[binary_sensor.froling_pe1_boiler_demand-entry]
+# name: test_entities[hybrid][binary_sensor.froling_pe1_boiler_demand-entry]
   EntityRegistryEntrySnapshot({
     'aliases': list([
       None,
@@ -36,7 +36,7 @@
     'unit_of_measurement': None,
   })
 # ---
-# name: test_entities[binary_sensor.froling_pe1_boiler_demand-state]
+# name: test_entities[hybrid][binary_sensor.froling_pe1_boiler_demand-state]
   StateSnapshot({
     'attributes': ReadOnlyDict({
       <EntityStateAttribute.FRIENDLY_NAME: 'friendly_name'>: 'Fröling PE1 Boiler demand',
@@ -49,7 +49,7 @@
     'state': 'off',
   })
 # ---
-# name: test_entities[binary_sensor.froling_pe1_fault-entry]
+# name: test_entities[hybrid][binary_sensor.froling_pe1_fault-entry]
   EntityRegistryEntrySnapshot({
     'aliases': list([
       None,
@@ -86,7 +86,108 @@
     'unit_of_measurement': None,
   })
 # ---
-# name: test_entities[binary_sensor.froling_pe1_fault-state]
+# name: test_entities[hybrid][binary_sensor.froling_pe1_fault-state]
+  StateSnapshot({
+    'attributes': ReadOnlyDict({
+      <EntityStateAttribute.DEVICE_CLASS: 'device_class'>: 'problem',
+      <EntityStateAttribute.FRIENDLY_NAME: 'friendly_name'>: 'Fröling PE1 Fault',
+    }),
+    'context': <ANY>,
+    'entity_id': 'binary_sensor.froling_pe1_fault',
+    'last_changed': <ANY>,
+    'last_reported': <ANY>,
+    'last_updated': <ANY>,
+    'state': 'off',
+  })
+# ---
+# name: test_entities[modbus][binary_sensor.froling_pe1_boiler_demand-entry]
+  EntityRegistryEntrySnapshot({
+    'aliases': list([
+      None,
+    ]),
+    'area_id': None,
+    'capabilities': None,
+    'config_entry_id': <ANY>,
+    'config_subentry_id': <ANY>,
+    'device_class': None,
+    'device_id': <ANY>,
+    'disabled_by': None,
+    'domain': 'binary_sensor',
+    'entity_category': None,
+    'entity_id': 'binary_sensor.froling_pe1_boiler_demand',
+    'has_entity_name': True,
+    'hidden_by': None,
+    'icon': None,
+    'id': <ANY>,
+    'labels': set({
+    }),
+    'name': None,
+    'object_id_base': 'Boiler demand',
+    'options': dict({
+    }),
+    'original_device_class': None,
+    'original_icon': None,
+    'original_name': 'Boiler demand',
+    'platform': 'froeling_lambdatronic',
+    'previous_unique_id': None,
+    'suggested_object_id': None,
+    'supported_features': 0,
+    'translation_key': 'boiler_demand',
+    'unique_id': '01K8FROELING0TEST0ENTRY000_boiler_demand',
+    'unit_of_measurement': None,
+  })
+# ---
+# name: test_entities[modbus][binary_sensor.froling_pe1_boiler_demand-state]
+  StateSnapshot({
+    'attributes': ReadOnlyDict({
+      <EntityStateAttribute.FRIENDLY_NAME: 'friendly_name'>: 'Fröling PE1 Boiler demand',
+    }),
+    'context': <ANY>,
+    'entity_id': 'binary_sensor.froling_pe1_boiler_demand',
+    'last_changed': <ANY>,
+    'last_reported': <ANY>,
+    'last_updated': <ANY>,
+    'state': 'off',
+  })
+# ---
+# name: test_entities[modbus][binary_sensor.froling_pe1_fault-entry]
+  EntityRegistryEntrySnapshot({
+    'aliases': list([
+      None,
+    ]),
+    'area_id': None,
+    'capabilities': None,
+    'config_entry_id': <ANY>,
+    'config_subentry_id': <ANY>,
+    'device_class': None,
+    'device_id': <ANY>,
+    'disabled_by': None,
+    'domain': 'binary_sensor',
+    'entity_category': None,
+    'entity_id': 'binary_sensor.froling_pe1_fault',
+    'has_entity_name': True,
+    'hidden_by': None,
+    'icon': None,
+    'id': <ANY>,
+    'labels': set({
+    }),
+    'name': None,
+    'object_id_base': 'Fault',
+    'options': dict({
+    }),
+    'original_device_class': <BinarySensorDeviceClass.PROBLEM: 'problem'>,
+    'original_icon': None,
+    'original_name': 'Fault',
+    'platform': 'froeling_lambdatronic',
+    'previous_unique_id': None,
+    'suggested_object_id': None,
+    'supported_features': 0,
+    'translation_key': 'fault_active',
+    'unique_id': '01K8FROELING0TEST0ENTRY000_fault_active',
+    'unit_of_measurement': None,
+  })
+# ---
+# name: test_entities[modbus][binary_sensor.froling_pe1_fault-state]
   StateSnapshot({
     'attributes': ReadOnlyDict({
       <EntityStateAttribute.DEVICE_CLASS: 'device_class'>: 'problem',

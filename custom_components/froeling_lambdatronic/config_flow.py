@@ -40,6 +40,7 @@ from homeassistant.helpers.selector import (
 
 from .const import (
     CONF_BUFFERS,
+    CONF_CIRCULATION_PUMP,
     CONF_CLOUD,
     CONF_EQUIPMENT,
     CONF_FACILITY_ID,
@@ -95,11 +96,12 @@ REAUTH_SCHEMA = probatio.Schema(
 )
 
 
-def _equipment_data(equipment: Equipment) -> dict[str, list[int]]:
+def _equipment_data(equipment: Equipment) -> dict[str, Any]:
     return {
         CONF_HEATING_CIRCUITS: sorted(equipment.heating_circuits),
         CONF_HOT_WATER: sorted(equipment.hot_water),
         CONF_BUFFERS: sorted(equipment.buffers),
+        CONF_CIRCULATION_PUMP: equipment.circulation_pump,
     }
 
 
@@ -121,8 +123,8 @@ def _equipment_schema(
 
 
 def _reconfigured_equipment(
-    entry: FroelingConfigEntry, detected: Mapping[str, list[int]], same_boiler: bool
-) -> tuple[dict[str, list[int]], dict[str, Any]]:
+    entry: FroelingConfigEntry, detected: Mapping[str, Any], same_boiler: bool
+) -> tuple[dict[str, Any], dict[str, Any]]:
     """Stored equipment and options after a reconfiguration.
 
     For the same boiler the stored equipment is the union of the previous and the new
@@ -130,7 +132,10 @@ def _reconfigured_equipment(
     are enabled in the options.
     """
     previous = entry.data[CONF_EQUIPMENT]
-    equipment: dict[str, list[int]] = {}
+    equipment: dict[str, Any] = {
+        CONF_CIRCULATION_PUMP: detected[CONF_CIRCULATION_PUMP]
+        or (same_boiler and previous[CONF_CIRCULATION_PUMP])
+    }
     options: dict[str, Any] = dict(entry.options)
     for key in EQUIPMENT_KEYS:
         stored = set(detected[key]) | set(previous[key]) if same_boiler else set(detected[key])
@@ -211,7 +216,7 @@ async def _async_check_cloud(
 class FroelingConfigFlow(ConfigFlow, domain=DOMAIN):
     """Set up a Lambdatronic boiler: connection, equipment, optional Fröling Connect."""
 
-    VERSION = 1
+    VERSION = 2
 
     def __init__(self) -> None:
         self._name = DEFAULT_NAME
@@ -273,7 +278,7 @@ class FroelingConfigFlow(ConfigFlow, domain=DOMAIN):
             entry.data[CONF_SLAVE],
         ) != (host, port, slave):
             return None
-        return entry.runtime_data.client
+        return entry.runtime_data.modbus
 
     async def async_step_user(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
         """Connection to the Modbus TCP gateway."""

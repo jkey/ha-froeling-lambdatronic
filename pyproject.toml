@@ -7,7 +7,7 @@ dependencies = []
 
 [dependency-groups]
 dev = [
-  "froeling-lambdatronic==0.1.0",
+  "froeling-lambdatronic==0.2.0b1",
   "mypy>=1.13",
   "pytest-homeassistant-custom-component==0.13.375",
   "ruff>=0.8",

@@ -30,27 +30,27 @@ def only_sensors() -> object:
         yield
 
 
-@pytest.mark.usefixtures("entity_registry_enabled_by_default", "mock_client")
+@pytest.mark.usefixtures("entity_registry_enabled_by_default", "mock_client", "mock_cloud")
 async def test_entities(
     hass: HomeAssistant,
     entity_registry: er.EntityRegistry,
     snapshot: SnapshotAssertion,
-    mock_config_entry_local: MockConfigEntry,
+    any_config_entry: MockConfigEntry,
 ) -> None:
-    """All sensors with their registry entries and states."""
-    await setup_integration(hass, mock_config_entry_local)
-    await snapshot_platform(hass, entity_registry, snapshot, mock_config_entry_local.entry_id)
+    """All sensors with their registry entries and states. for every connection type."""
+    await setup_integration(hass, any_config_entry)
+    await snapshot_platform(hass, entity_registry, snapshot, any_config_entry.entry_id)
 
 
 @pytest.mark.usefixtures("mock_client")
 async def test_disabled_by_default(
-    hass: HomeAssistant, entity_registry: er.EntityRegistry, mock_config_entry_local: MockConfigEntry
+    hass: HomeAssistant, entity_registry: er.EntityRegistry, mock_config_entry_modbus: MockConfigEntry
 ) -> None:
     """Return and room temperature start disabled."""
-    await setup_integration(hass, mock_config_entry_local)
+    await setup_integration(hass, mock_config_entry_modbus)
     for entity_id in (
         "sensor.froling_pe1_return_temperature",
-        "sensor.froling_pe1_heating_circuit_1_room_temperature",
+        "sensor.froling_pe1_heating_circuit_01_room_temperature",
     ):
         entry = entity_registry.async_get(entity_id)
         assert entry is not None
@@ -58,11 +58,11 @@ async def test_disabled_by_default(
 
 
 async def test_fault_sensor(
-    hass: HomeAssistant, mock_client: MagicMock, mock_config_entry_local: MockConfigEntry
+    hass: HomeAssistant, mock_client: MagicMock, mock_config_entry_modbus: MockConfigEntry
 ) -> None:
     """The first error is the state, further errors are an attribute."""
     mock_client.read_values.return_value = replace(VALUES, errors=(4, 21))
-    await setup_integration(hass, mock_config_entry_local)
+    await setup_integration(hass, mock_config_entry_modbus)
 
     state = hass.states.get("sensor.froling_pe1_fault_text")
     assert state is not None
@@ -72,18 +72,18 @@ async def test_fault_sensor(
 
 
 async def test_unknown_states(
-    hass: HomeAssistant, mock_client: MagicMock, mock_config_entry_local: MockConfigEntry
+    hass: HomeAssistant, mock_client: MagicMock, mock_config_entry_modbus: MockConfigEntry
 ) -> None:
     """Unknown state codes and a missing outside temperature become unknown."""
     mock_client.read_values.return_value = replace(
         VALUES, system_state=99, boiler_state=None, outside_temperature=None, pellet_consumption_total=None
     )
-    await setup_integration(hass, mock_config_entry_local)
+    await setup_integration(hass, mock_config_entry_modbus)
 
     for entity_id in (
         "sensor.froling_pe1_system_state",
         "sensor.froling_pe1_boiler_state",
-        "sensor.froling_pe1_heating_circuit_1_flow_by_heating_curve",
+        "sensor.froling_pe1_heating_circuit_01_flow_by_heating_curve",
         "sensor.froling_pe1_pellet_consumption",
     ):
         state = hass.states.get(entity_id)
@@ -92,11 +92,11 @@ async def test_unknown_states(
 
 
 async def test_curve_sensor_follows_parameters(
-    hass: HomeAssistant, mock_client: MagicMock, mock_config_entry_local: MockConfigEntry
+    hass: HomeAssistant, mock_client: MagicMock, mock_config_entry_modbus: MockConfigEntry
 ) -> None:
     """The curve sensor updates with the parameters and needs them to be available."""
-    await setup_integration(hass, mock_config_entry_local)
-    entity_id = "sensor.froling_pe1_heating_circuit_1_flow_by_heating_curve"
+    await setup_integration(hass, mock_config_entry_modbus)
+    entity_id = "sensor.froling_pe1_heating_circuit_01_flow_by_heating_curve"
     state = hass.states.get(entity_id)
     assert state is not None
     assert state.state == "46.4"

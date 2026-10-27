@@ -22,7 +22,9 @@ from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.froeling_lambdatronic.const import (
     CONF_BUFFERS,
+    CONF_CIRCULATION_PUMP,
     CONF_CLOUD,
+    CONF_CLOUD_INTERVAL,
     CONF_EQUIPMENT,
     CONF_FACILITY_ID,
     CONF_HEATING_CIRCUITS,
@@ -31,10 +33,20 @@ from custom_components.froeling_lambdatronic.const import (
     CONF_SCAN_INTERVAL,
     CONF_SLAVE,
     DOMAIN,
+    ConnectionType,
 )
 
 from . import setup_integration
-from .const import ENTRY_OPTIONS, FACILITY_ID, HOST, PASSWORD, UNIQUE_ID, USERNAME, entry_data
+from .const import FACILITY_ID, HOST, PASSWORD, UNIQUE_ID, USERNAME, entry_data
+
+# Until the flow is rebuilt (0.2.0 task i6) it still stores the old component selection.
+ENTRY_OPTIONS = {
+    CONF_HEATING_CIRCUITS: [1, 2],
+    CONF_HOT_WATER: [1],
+    CONF_BUFFERS: [1],
+    CONF_SCAN_INTERVAL: 30,
+    CONF_PARAMETER_INTERVAL: 5,
+}
 
 USER_INPUT = {CONF_HOST: HOST, CONF_PORT: 502, CONF_SLAVE: 2, CONF_NAME: "Fröling PE1"}
 EQUIPMENT_INPUT = {CONF_HEATING_CIRCUITS: ["1", "2"], CONF_HOT_WATER: ["1"], CONF_BUFFERS: ["1"]}
@@ -80,7 +92,7 @@ async def test_user_flow_without_cloud(hass: HomeAssistant) -> None:
     result = await hass.config_entries.flow.async_configure(result["flow_id"], {})
 
     assert result["type"] is FlowResultType.CREATE_ENTRY
-    assert result["data"] == entry_data(cloud=False)
+    assert result["data"] == entry_data(ConnectionType.MODBUS)
     assert result["options"] == {**ENTRY_OPTIONS, CONF_HEATING_CIRCUITS: [2]}
 
 
@@ -258,16 +270,16 @@ async def test_reconfigure_new_gateway_without_cloud(
     await setup_integration(hass, mock_config_entry)
     result = await mock_config_entry.start_reconfigure_flow(hass)
     result = await hass.config_entries.flow.async_configure(
-        result["flow_id"], {CONF_HOST: "192.168.70.19", CONF_PORT: 502, CONF_SLAVE: 3}
+        result["flow_id"], {CONF_HOST: "192.168.1.51", CONF_PORT: 502, CONF_SLAVE: 3}
     )
     result = await hass.config_entries.flow.async_configure(result["flow_id"], {})
 
     assert result["type"] is FlowResultType.ABORT
     assert result["reason"] == "reconfigure_successful"
-    assert mock_config_entry.unique_id == "192.168.70.19:502:3"
+    assert mock_config_entry.unique_id == "192.168.1.51:502:3"
     assert mock_config_entry.data == {
-        **entry_data(cloud=False),
-        CONF_HOST: "192.168.70.19",
+        **entry_data(ConnectionType.MODBUS),
+        CONF_HOST: "192.168.1.51",
         CONF_SLAVE: 3,
     }
     await hass.async_block_till_done()
@@ -277,21 +289,21 @@ async def test_reconfigure_new_gateway_without_cloud(
 @pytest.mark.usefixtures("mock_client", "mock_cloud")
 async def test_reconfigure_to_other_entry(hass: HomeAssistant, mock_config_entry: MockConfigEntry) -> None:
     """Reconfiguring onto the connection of another entry is refused."""
-    MockConfigEntry(domain=DOMAIN, unique_id="192.168.70.19:502:2", data=entry_data()).add_to_hass(hass)
+    MockConfigEntry(domain=DOMAIN, unique_id="192.168.1.51:502:2", data=entry_data()).add_to_hass(hass)
     await setup_integration(hass, mock_config_entry)
     result = await mock_config_entry.start_reconfigure_flow(hass)
     result = await hass.config_entries.flow.async_configure(
-        result["flow_id"], {CONF_HOST: "192.168.70.19", CONF_PORT: 502, CONF_SLAVE: 2}
+        result["flow_id"], {CONF_HOST: "192.168.1.51", CONF_PORT: 502, CONF_SLAVE: 2}
     )
     assert result["type"] is FlowResultType.ABORT
     assert result["reason"] == "already_configured"
 
 
 @pytest.mark.usefixtures("mock_client")
-async def test_options(hass: HomeAssistant, mock_config_entry_local: MockConfigEntry) -> None:
+async def test_options(hass: HomeAssistant, mock_config_entry_modbus: MockConfigEntry) -> None:
     """Options change the components and intervals and reload the entry."""
-    await setup_integration(hass, mock_config_entry_local)
-    result = await hass.config_entries.options.async_init(mock_config_entry_local.entry_id)
+    await setup_integration(hass, mock_config_entry_modbus)
+    result = await hass.config_entries.options.async_init(mock_config_entry_modbus.entry_id)
     assert result["type"] is FlowResultType.FORM
     assert result["step_id"] == "init"
 
@@ -302,15 +314,14 @@ async def test_options(hass: HomeAssistant, mock_config_entry_local: MockConfigE
     await hass.async_block_till_done()
 
     assert result["type"] is FlowResultType.CREATE_ENTRY
-    assert mock_config_entry_local.options == {
+    assert mock_config_entry_modbus.options == {
         **ENTRY_OPTIONS,
         CONF_BUFFERS: [],
         CONF_SCAN_INTERVAL: 60,
         CONF_PARAMETER_INTERVAL: 10,
     }
-    assert mock_config_entry_local.state is ConfigEntryState.LOADED
-    assert mock_config_entry_local.runtime_data.equipment.buffers == ()
-    assert mock_config_entry_local.data[CONF_EQUIPMENT][CONF_BUFFERS] == [1]
+    assert mock_config_entry_modbus.state is ConfigEntryState.LOADED
+    assert mock_config_entry_modbus.data[CONF_EQUIPMENT][CONF_BUFFERS] == [1]
 
 
 async def test_user_flow_partial_equipment(hass: HomeAssistant, mock_client: MagicMock) -> None:
@@ -331,6 +342,7 @@ async def test_user_flow_partial_equipment(hass: HomeAssistant, mock_client: Mag
         CONF_HEATING_CIRCUITS: [1],
         CONF_HOT_WATER: [],
         CONF_BUFFERS: [],
+        CONF_CIRCULATION_PUMP: False,
     }
     assert result["options"][CONF_HOT_WATER] == []
 
@@ -360,6 +372,7 @@ async def test_reconfigure_same_gateway_merges_equipment(
         CONF_HEATING_CIRCUITS: [1, 2, 3],
         CONF_HOT_WATER: [1],
         CONF_BUFFERS: [1],
+        CONF_CIRCULATION_PUMP: True,
     }
     assert mock_config_entry.options == {**ENTRY_OPTIONS, CONF_HEATING_CIRCUITS: [2, 3]}
 
@@ -374,7 +387,7 @@ async def test_reconfigure_new_gateway_replaces_equipment(
 
     result = await mock_config_entry.start_reconfigure_flow(hass)
     result = await hass.config_entries.flow.async_configure(
-        result["flow_id"], {CONF_HOST: "192.168.70.19", CONF_PORT: 502, CONF_SLAVE: 2}
+        result["flow_id"], {CONF_HOST: "192.168.1.51", CONF_PORT: 502, CONF_SLAVE: 2}
     )
     result = await hass.config_entries.flow.async_configure(result["flow_id"], {CONF_USERNAME: USERNAME})
     await hass.async_block_till_done()
@@ -384,9 +397,11 @@ async def test_reconfigure_new_gateway_replaces_equipment(
         CONF_HEATING_CIRCUITS: [1],
         CONF_HOT_WATER: [],
         CONF_BUFFERS: [2],
+        CONF_CIRCULATION_PUMP: False,
     }
     assert mock_config_entry.options == {
         **ENTRY_OPTIONS,
+        CONF_CLOUD_INTERVAL: 2,
         CONF_HEATING_CIRCUITS: [1],
         CONF_HOT_WATER: [],
         CONF_BUFFERS: [2],
@@ -395,21 +410,21 @@ async def test_reconfigure_new_gateway_replaces_equipment(
 
 @pytest.mark.usefixtures("mock_client")
 async def test_options_ignore_stale_selection(
-    hass: HomeAssistant, mock_config_entry_local: MockConfigEntry
+    hass: HomeAssistant, mock_config_entry_modbus: MockConfigEntry
 ) -> None:
     """Selected numbers that are no longer stored are not preselected and do not break the form."""
-    mock_config_entry_local.add_to_hass(hass)
+    mock_config_entry_modbus.add_to_hass(hass)
     hass.config_entries.async_update_entry(
-        mock_config_entry_local, options={**ENTRY_OPTIONS, CONF_HEATING_CIRCUITS: [1, 5]}
+        mock_config_entry_modbus, options={**ENTRY_OPTIONS, CONF_HEATING_CIRCUITS: [1, 5]}
     )
-    await hass.config_entries.async_setup(mock_config_entry_local.entry_id)
+    await hass.config_entries.async_setup(mock_config_entry_modbus.entry_id)
     await hass.async_block_till_done()
 
-    result = await hass.config_entries.options.async_init(mock_config_entry_local.entry_id)
+    result = await hass.config_entries.options.async_init(mock_config_entry_modbus.entry_id)
     result = await hass.config_entries.options.async_configure(
         result["flow_id"], {CONF_SCAN_INTERVAL: 30, CONF_PARAMETER_INTERVAL: 5}
     )
     await hass.async_block_till_done()
 
     assert result["type"] is FlowResultType.CREATE_ENTRY
-    assert mock_config_entry_local.options == {**ENTRY_OPTIONS, CONF_HEATING_CIRCUITS: [1]}
+    assert mock_config_entry_modbus.options == {**ENTRY_OPTIONS, CONF_HEATING_CIRCUITS: [1]}

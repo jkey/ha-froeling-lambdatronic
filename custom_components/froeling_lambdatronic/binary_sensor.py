@@ -1,9 +1,5 @@
 """Binary sensors of the Fröling Lambdatronic integration."""
 
-from collections.abc import Callable
-from dataclasses import dataclass
-
-from froeling_lambdatronic import LambdatronicValues
 from homeassistant.components.binary_sensor import (
     BinarySensorDeviceClass,
     BinarySensorEntity,
@@ -12,31 +8,20 @@ from homeassistant.components.binary_sensor import (
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
-from .coordinator import FroelingConfigEntry, ValuesCoordinator
+from .coordinator import FroelingConfigEntry
 from .entity import BOILER_COMPONENT, Component, FroelingEntity
+from .sources import FroelingSources, Source
 
 PARALLEL_UPDATES = 0
 
+FAULT_ACTIVE = BinarySensorEntityDescription(
+    key="fault_active",
+    translation_key="fault_active",
+    device_class=BinarySensorDeviceClass.PROBLEM,
+)
 
-@dataclass(frozen=True, kw_only=True)
-class FroelingBinarySensorDescription(BinarySensorEntityDescription):
-    """Binary sensor derived from the current values."""
-
-    value_fn: Callable[[LambdatronicValues], bool | None]
-
-
-BINARY_SENSORS: tuple[FroelingBinarySensorDescription, ...] = (
-    FroelingBinarySensorDescription(
-        key="fault_active",
-        translation_key="fault_active",
-        device_class=BinarySensorDeviceClass.PROBLEM,
-        value_fn=lambda v: v.fault_active,
-    ),
-    FroelingBinarySensorDescription(
-        key="boiler_demand",
-        translation_key="boiler_demand",
-        value_fn=lambda v: v.boiler_demand,
-    ),
+BOILER_BINARY_SENSORS: tuple[BinarySensorEntityDescription, ...] = (
+    BinarySensorEntityDescription(key="boiler_demand", translation_key="boiler_demand"),
 )
 
 
@@ -45,28 +30,54 @@ async def async_setup_entry(
     entry: FroelingConfigEntry,
     async_add_entities: AddConfigEntryEntitiesCallback,
 ) -> None:
-    """Set up the binary sensors."""
-    values = entry.runtime_data.values
-    async_add_entities(
-        FroelingBinarySensor(values, BOILER_COMPONENT, description) for description in BINARY_SENSORS
-    )
+    """Set up the binary sensors of every value that has a source."""
+    data = entry.runtime_data
+    sources = data.sources
+    entities: list[BinarySensorEntity] = _binary_sensors(sources, BOILER_COMPONENT, BOILER_BINARY_SENSORS)
+    if data.values is not None:
+        entities.append(FroelingFaultBinarySensor(sources))
+    async_add_entities(entities)
 
 
-class FroelingBinarySensor(FroelingEntity[ValuesCoordinator], BinarySensorEntity):
-    """Binary sensor of the boiler."""
+def _binary_sensors(
+    sources: FroelingSources, component: Component, descriptions: tuple[BinarySensorEntityDescription, ...]
+) -> list[BinarySensorEntity]:
+    return [
+        FroelingBinarySensor(sources, component, description, source)
+        for description in descriptions
+        if (source := sources.source(component.key_prefix + description.key)) is not None
+    ]
 
-    entity_description: FroelingBinarySensorDescription
+
+class FroelingBinarySensor(FroelingEntity, BinarySensorEntity):
+    """Binary sensor of one on/off value."""
 
     def __init__(
         self,
-        coordinator: ValuesCoordinator,
+        sources: FroelingSources,
         component: Component,
-        description: FroelingBinarySensorDescription,
+        description: BinarySensorEntityDescription,
+        source: Source,
     ) -> None:
-        super().__init__(coordinator, component, description.key)
+        super().__init__(sources, component, description.key, source)
         self.entity_description = description
 
     @property
     def is_on(self) -> bool | None:
         """Current state."""
-        return self.entity_description.value_fn(self.coordinator.data)
+        value = self.flat_value
+        return None if value is None else bool(value)
+
+
+class FroelingFaultBinarySensor(FroelingEntity, BinarySensorEntity):
+    """On while the Modbus error buffer has entries or the boiler is in a fault state."""
+
+    entity_description = FAULT_ACTIVE
+
+    def __init__(self, sources: FroelingSources) -> None:
+        super().__init__(sources, BOILER_COMPONENT, FAULT_ACTIVE.key, Source.MODBUS_VALUES)
+
+    @property
+    def is_on(self) -> bool:
+        """True if a fault is active."""
+        return bool(self.coordinator.data.fault_active)

@@ -7,15 +7,22 @@ import pytest
 from froeling_lambdatronic import Facility
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
-from custom_components.froeling_lambdatronic.const import DOMAIN
+from custom_components.froeling_lambdatronic.const import DOMAIN, ConnectionType
 
 from .const import (
+    CLOUD_COMPONENTS,
+    CLOUD_DETAILS_BY_ID,
+    CLOUD_ERRORS,
+    CLOUD_OVERVIEW,
     CLOUD_STATE,
+    CLOUD_UNIQUE_ID,
     ENTRY_ID,
     ENTRY_OPTIONS,
     EQUIPMENT,
     FACILITY_ID,
+    HEADER,
     PARAMETERS,
+    SYSTEM_INFO,
     UNIQUE_ID,
     VALUES,
     entry_data,
@@ -37,30 +44,40 @@ def entity_registry_enabled_by_default() -> Generator[None]:
         yield
 
 
+def _entry(connection: ConnectionType) -> MockConfigEntry:
+    return MockConfigEntry(
+        domain=DOMAIN,
+        version=2,
+        entry_id=ENTRY_ID,
+        title="Fröling PE1",
+        unique_id=CLOUD_UNIQUE_ID if connection is ConnectionType.CLOUD else UNIQUE_ID,
+        data=entry_data(connection),
+        options=ENTRY_OPTIONS,
+    )
+
+
 @pytest.fixture
 def mock_config_entry() -> MockConfigEntry:
-    """Config entry with Fröling Connect."""
-    return MockConfigEntry(
-        domain=DOMAIN,
-        entry_id=ENTRY_ID,
-        title="Fröling PE1",
-        unique_id=UNIQUE_ID,
-        data=entry_data(),
-        options=ENTRY_OPTIONS,
-    )
+    """Config entry with Modbus and Fröling Connect (hybrid)."""
+    return _entry(ConnectionType.HYBRID)
 
 
 @pytest.fixture
-def mock_config_entry_local() -> MockConfigEntry:
-    """Config entry without Fröling Connect."""
-    return MockConfigEntry(
-        domain=DOMAIN,
-        entry_id=ENTRY_ID,
-        title="Fröling PE1",
-        unique_id=UNIQUE_ID,
-        data=entry_data(cloud=False),
-        options=ENTRY_OPTIONS,
-    )
+def mock_config_entry_modbus() -> MockConfigEntry:
+    """Config entry with Modbus only."""
+    return _entry(ConnectionType.MODBUS)
+
+
+@pytest.fixture
+def mock_config_entry_cloud() -> MockConfigEntry:
+    """Config entry with Fröling Connect only."""
+    return _entry(ConnectionType.CLOUD)
+
+
+@pytest.fixture(params=list(ConnectionType))
+def any_config_entry(request: pytest.FixtureRequest) -> MockConfigEntry:
+    """Config entry of every connection type."""
+    return _entry(request.param)
 
 
 @pytest.fixture
@@ -83,11 +100,22 @@ def mock_client() -> Generator[MagicMock]:
 
 @pytest.fixture
 def mock_cloud() -> Generator[MagicMock]:
-    """FroelingConnectClient mocked in setup and config flow."""
+    """FroelingConnectClient mocked in setup and config flow, answering with the cloud fixtures."""
     cloud = MagicMock()
     cloud.login = AsyncMock()
-    cloud.get_facilities = AsyncMock(return_value=[Facility(FACILITY_ID, "Haus", "PE1")])
+    cloud.get_facilities = AsyncMock(
+        return_value=[Facility(FACILITY_ID, "Home", "PE1 Pellet 20", "100000001")]
+    )
+    cloud.get_components = AsyncMock(return_value=list(CLOUD_COMPONENTS))
+    cloud.get_overview = AsyncMock(return_value=CLOUD_OVERVIEW)
+    cloud.get_component_detail = AsyncMock(
+        side_effect=lambda facility_id, component_id: CLOUD_DETAILS_BY_ID[component_id]
+    )
     cloud.get_boiler_state = AsyncMock(return_value=CLOUD_STATE)
+    cloud.get_errors = AsyncMock(return_value=list(CLOUD_ERRORS))
+    cloud.get_system_info = AsyncMock(return_value=SYSTEM_INFO)
+    cloud.get_header = AsyncMock(return_value=HEADER)
+    cloud.set_value = AsyncMock()
     cloud.set_operating_mode = AsyncMock()
     with (
         patch("custom_components.froeling_lambdatronic.FroelingConnectClient", return_value=cloud),

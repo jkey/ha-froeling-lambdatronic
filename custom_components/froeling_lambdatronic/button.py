@@ -7,8 +7,9 @@ from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
 from .const import DOMAIN
-from .coordinator import FroelingConfigEntry, ParametersCoordinator, ValuesCoordinator
+from .coordinator import FroelingConfigEntry, ModbusParametersCoordinator
 from .entity import BOILER_COMPONENT, FroelingEntity
+from .sources import FroelingSources, Source
 
 PARALLEL_UPDATES = 1
 
@@ -24,21 +25,22 @@ async def async_setup_entry(
     entry: FroelingConfigEntry,
     async_add_entities: AddConfigEntryEntitiesCallback,
 ) -> None:
-    """Set up the button."""
+    """Set up the buttons."""
     data = entry.runtime_data
-    async_add_entities([FroelingRefreshButton(data.values, data.parameters)])
+    if data.parameters is not None:
+        async_add_entities([FroelingRefreshButton(data.sources, data.parameters)])
 
 
-class FroelingRefreshButton(FroelingEntity[ValuesCoordinator], ButtonEntity):
-    """Read all parameters again (e.g. after a change at the boiler display).
+class FroelingRefreshButton(FroelingEntity, ButtonEntity):
+    """Read all Modbus parameters again (e.g. after a change at the boiler display).
 
     Available whenever the boiler answers, so that failed parameter reads can be retried.
     """
 
     entity_description = REFRESH_PARAMETERS
 
-    def __init__(self, coordinator: ValuesCoordinator, parameters: ParametersCoordinator) -> None:
-        super().__init__(coordinator, BOILER_COMPONENT, REFRESH_PARAMETERS.key)
+    def __init__(self, sources: FroelingSources, parameters: ModbusParametersCoordinator) -> None:
+        super().__init__(sources, BOILER_COMPONENT, REFRESH_PARAMETERS.key, Source.MODBUS_VALUES)
         self._parameters = parameters
 
     async def async_press(self) -> None:

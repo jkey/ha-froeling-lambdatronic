@@ -1,7 +1,11 @@
 """Constants of the Fröling Lambdatronic integration."""
 
+from collections.abc import Mapping
 from datetime import timedelta
-from typing import Final
+from enum import StrEnum
+from typing import Any, Final
+
+from homeassistant.const import CONF_HOST
 
 DOMAIN: Final = "froeling_lambdatronic"
 
@@ -14,8 +18,10 @@ CONF_EQUIPMENT: Final = "equipment"
 CONF_HEATING_CIRCUITS: Final = "heating_circuits"
 CONF_HOT_WATER: Final = "hot_water"
 CONF_BUFFERS: Final = "buffers"
+CONF_CIRCULATION_PUMP: Final = "circulation_pump"
 CONF_SCAN_INTERVAL: Final = "scan_interval"
 CONF_PARAMETER_INTERVAL: Final = "parameter_interval"
+CONF_CLOUD_INTERVAL: Final = "cloud_interval"
 CONF_CLOUD: Final = "cloud"
 CONF_FACILITY_ID: Final = "facility_id"
 
@@ -25,13 +31,34 @@ MAX_SCAN_INTERVAL: Final = 300
 DEFAULT_PARAMETER_INTERVAL: Final = 5
 MIN_PARAMETER_INTERVAL: Final = 1
 MAX_PARAMETER_INTERVAL: Final = 60
-CLOUD_INTERVAL: Final = timedelta(minutes=5)
+DEFAULT_CLOUD_INTERVAL: Final = 2
+MIN_CLOUD_INTERVAL: Final = 1
+MAX_CLOUD_INTERVAL: Final = 60
+CLOUD_INFO_INTERVAL: Final = timedelta(hours=1)
 
 MANUFACTURER: Final = "Fröling"
 MODEL: Final = "Lambdatronic 3200"
 
 ISSUE_PROTOCOL_DISABLED: Final = "protocol_2014_disabled"
 ISSUE_REMOTE_CONTROL_DISABLED: Final = "remote_control_disabled"
+
+
+class ConnectionType(StrEnum):
+    """How the integration talks to the boiler."""
+
+    MODBUS = "modbus"
+    CLOUD = "cloud"
+    HYBRID = "hybrid"
+
+
+def connection_type(data: Mapping[str, Any]) -> ConnectionType:
+    """Connection type of a config entry, derived from its data (Modbus host and/or Connect login)."""
+    modbus = CONF_HOST in data
+    cloud = data.get(CONF_CLOUD) is not None
+    if modbus and cloud:
+        return ConnectionType.HYBRID
+    return ConnectionType.MODBUS if modbus else ConnectionType.CLOUD
+
 
 # Register 34001 (system state) -> translation key.
 SYSTEM_STATE_KEYS: Final[dict[int, str]] = {

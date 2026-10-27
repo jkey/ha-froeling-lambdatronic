@@ -14,10 +14,15 @@ from .coordinator import FroelingConfigEntry
 TO_REDACT = {CONF_PASSWORD, CONF_USERNAME, CONF_FACILITY_ID}
 
 
-def _coordinator(coordinator: DataUpdateCoordinator[Any]) -> dict[str, Any]:
+def _coordinator(coordinator: DataUpdateCoordinator[Any] | None) -> dict[str, Any] | None:
+    if coordinator is None:
+        return None
     return {
         "last_update_success": coordinator.last_update_success,
         "last_exception": None if coordinator.last_exception is None else repr(coordinator.last_exception),
+        "raw": None
+        if coordinator.data is None
+        else {str(k): v for k, v in sorted(coordinator.data.raw.items())},
     }
 
 
@@ -34,23 +39,13 @@ async def async_get_config_entry_diagnostics(
             "options": dict(entry.options),
         },
         "equipment": asdict(data.equipment),
-        "values": {
-            **_coordinator(values),
-            "raw": None if values.data is None else {str(k): v for k, v in sorted(values.data.raw.items())},
-        },
-        "parameters": {
-            **_coordinator(parameters),
-            "raw": (
-                None
-                if parameters.data is None
-                else {str(k): v for k, v in sorted(parameters.data.raw.items())}
-            ),
-        },
+        "values": _coordinator(values),
+        "parameters": _coordinator(parameters),
         "cloud": None,
     }
     if data.cloud is not None:
         result["cloud"] = {
-            **_coordinator(data.cloud),
-            "state": None if data.cloud.data is None else asdict(data.cloud.data),
+            "last_update_success": data.cloud.last_update_success,
+            "state": None if data.cloud.data is None else asdict(data.cloud.data.boiler_state),
         }
     return result

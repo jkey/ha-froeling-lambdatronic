@@ -1075,14 +1075,14 @@ wheels = [
 
 [[package]]
 name = "froeling-lambdatronic"
-version = "0.1.0"
+version = "0.2.0b1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "aiohttp" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/05/e8/b6c4b8bd2a0a6e76a326dfdf8846d4cbc97168ea138df8c5cf28161c39b7/froeling_lambdatronic-0.1.0.tar.gz", hash = "sha256:87f256f39a4caa2d799afaf0346468f2e9f85a33be8d24da6db36f6b9dff9623", size = 146779, upload-time = "2026-10-25T13:25:29.573Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/b2/ef/e0a0639f3d25216ca465321710c53a587ce80543033001e8fc40f837901c/froeling_lambdatronic-0.2.0b1.tar.gz", hash = "sha256:0d9b136dd7cb93845619fa25320ffab9345c18daee4d74ae1229dd9fe1cc7853", size = 187707, upload-time = "2026-10-27T22:12:06.018Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/12/6c/73acbd0aa1fdf2ee299ce7f2b66d14cf513514564bf703b6bc62a9a57f6b/froeling_lambdatronic-0.1.0-py3-none-any.whl", hash = "sha256:ccfa0fe2806b8f024e158932005dac645265ebed6b6b2dd52801c2763c32b8a5", size = 28707, upload-time = "2026-10-25T13:25:28.228Z" },
+    { url = "https://files.pythonhosted.org/packages/45/91/269861fde52149140aab87bfd2c3684c7dc115ebe835f0d462e2bcb8d29b/froeling_lambdatronic-0.2.0b1-py3-none-any.whl", hash = "sha256:91ca6a1a50372bbce0a6c94191fe4814ebdebab3556e8c21bca76519b8b87bde", size = 47221, upload-time = "2026-10-27T22:12:04.532Z" },
 ]
 
 [[package]]
@@ -1222,7 +1222,7 @@ dev = [
 
 [package.metadata.requires-dev]
 dev = [
-    { name = "froeling-lambdatronic", specifier = "==0.1.0" },
+    { name = "froeling-lambdatronic", specifier = "==0.2.0b1" },
     { name = "mypy", specifier = ">=1.13" },
     { name = "pytest-homeassistant-custom-component", specifier = "==0.13.375" },
     { name = "ruff", specifier = ">=0.8" },

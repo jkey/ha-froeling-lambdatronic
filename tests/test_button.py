@@ -13,6 +13,8 @@ from homeassistant.helpers import entity_registry as er
 from pytest_homeassistant_custom_component.common import MockConfigEntry, snapshot_platform
 from syrupy.assertion import SnapshotAssertion
 
+from custom_components.froeling_lambdatronic.const import ConnectionType
+
 from . import setup_integration
 
 
@@ -23,23 +25,24 @@ def only_buttons() -> object:
         yield
 
 
-@pytest.mark.usefixtures("mock_client")
+@pytest.mark.parametrize("any_config_entry", [ConnectionType.MODBUS, ConnectionType.HYBRID], indirect=True)
+@pytest.mark.usefixtures("mock_client", "mock_cloud")
 async def test_entities(
     hass: HomeAssistant,
     entity_registry: er.EntityRegistry,
     snapshot: SnapshotAssertion,
-    mock_config_entry_local: MockConfigEntry,
+    any_config_entry: MockConfigEntry,
 ) -> None:
-    """The refresh button with its registry entry and state."""
-    await setup_integration(hass, mock_config_entry_local)
-    await snapshot_platform(hass, entity_registry, snapshot, mock_config_entry_local.entry_id)
+    """The refresh button with its registry entry and state. for every connection type."""
+    await setup_integration(hass, any_config_entry)
+    await snapshot_platform(hass, entity_registry, snapshot, any_config_entry.entry_id)
 
 
 async def test_press(
-    hass: HomeAssistant, mock_client: MagicMock, mock_config_entry_local: MockConfigEntry
+    hass: HomeAssistant, mock_client: MagicMock, mock_config_entry_modbus: MockConfigEntry
 ) -> None:
     """Pressing reads the parameters again."""
-    await setup_integration(hass, mock_config_entry_local)
+    await setup_integration(hass, mock_config_entry_modbus)
     reads = mock_client.read_parameters.await_count
 
     await hass.services.async_call(
@@ -53,10 +56,10 @@ async def test_press(
 
 
 async def test_press_fails_and_stays_available(
-    hass: HomeAssistant, mock_client: MagicMock, mock_config_entry_local: MockConfigEntry
+    hass: HomeAssistant, mock_client: MagicMock, mock_config_entry_modbus: MockConfigEntry
 ) -> None:
     """A failed read is reported; the button stays available while the boiler answers."""
-    await setup_integration(hass, mock_config_entry_local)
+    await setup_integration(hass, mock_config_entry_modbus)
     mock_client.read_parameters.side_effect = NoResponseError("timeout")
 
     with pytest.raises(HomeAssistantError) as raised:
@@ -80,17 +83,17 @@ async def test_press_fails_and_stays_available(
         {ATTR_ENTITY_ID: "button.froling_pe1_read_parameters"},
         blocking=True,
     )
-    assert mock_config_entry_local.runtime_data.parameters.last_update_success is True
+    assert mock_config_entry_modbus.runtime_data.parameters.last_update_success is True
 
 
 async def test_unavailable_without_boiler(
-    hass: HomeAssistant, mock_client: MagicMock, mock_config_entry_local: MockConfigEntry
+    hass: HomeAssistant, mock_client: MagicMock, mock_config_entry_modbus: MockConfigEntry
 ) -> None:
     """The button follows the availability of the current values."""
-    await setup_integration(hass, mock_config_entry_local)
+    await setup_integration(hass, mock_config_entry_modbus)
     mock_client.read_values.side_effect = NoResponseError("timeout")
 
-    await mock_config_entry_local.runtime_data.values.async_refresh()
+    await mock_config_entry_modbus.runtime_data.values.async_refresh()
     await hass.async_block_till_done()
 
     state = hass.states.get("button.froling_pe1_read_parameters")
