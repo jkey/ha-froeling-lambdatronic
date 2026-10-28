@@ -16,7 +16,13 @@ jobs:
       - uses: actions/checkout@v4
       - name: Version des Tags muss zur Manifest-Version passen
         run: test "v$(jq -r .version custom_components/froeling_lambdatronic/manifest.json)" = "${GITHUB_REF_NAME}"
-      - name: GitHub-Release anlegen
+      - name: GitHub-Release anlegen (Vorabversionen als prerelease)
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release create "${GITHUB_REF_NAME}" --title "${GITHUB_REF_NAME}" --generate-notes
+        run: |
+          args=(--title "${GITHUB_REF_NAME}" --generate-notes)
+          # PEP-440-Vorabversionen (v0.2.0a1, v0.2.0b1, v0.2.0rc1): HACS bietet sie nur bei "Beta anzeigen" an.
+          if [[ "${GITHUB_REF_NAME}" =~ ^v[0-9]+(\.[0-9]+)*(a|b|rc)[0-9]+$ ]]; then
+            args+=(--prerelease)
+          fi
+          gh release create "${GITHUB_REF_NAME}" "${args[@]}"
