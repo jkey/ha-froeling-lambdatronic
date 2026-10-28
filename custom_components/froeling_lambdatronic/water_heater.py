@@ -12,6 +12,7 @@ from homeassistant.components.water_heater import (
 from homeassistant.const import PRECISION_HALVES, UnitOfTemperature
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
+from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 
 from .const import HOT_WATER_MODE_KEYS
 from .coordinator import FroelingConfigEntry
@@ -67,10 +68,13 @@ class FroelingWaterHeater(FroelingWritableEntity, WaterHeaterEntity):
         if (temperature_source := sources.source(self._temperature_key)) is not None:
             self.follow(sources.coordinator(temperature_source))
         # Auto/extra charge exists only in Fröling Connect (41631 does not match).
+        self._mode_coordinator: DataUpdateCoordinator[Any] | None = None
         if (mode_source := sources.source(self._mode_key)) is not None and sources.writable(self._mode_key):
             self._attr_supported_features |= WaterHeaterEntityFeature.OPERATION_MODE
             self._attr_operation_list = list(HOT_WATER_MODE_KEYS.values())
-            self.follow(sources.coordinator(mode_source))
+            self._mode_coordinator = sources.coordinator(mode_source)
+            # With Modbus the mode only adds information; a Connect outage must not hide the tank.
+            self.follow(self._mode_coordinator, required=False)
 
     @property
     def current_temperature(self) -> float | None:
@@ -86,7 +90,9 @@ class FroelingWaterHeater(FroelingWritableEntity, WaterHeaterEntity):
 
     @property
     def current_operation(self) -> str | None:
-        """Automatic or extra charge; None without Fröling Connect."""
+        """Automatic or extra charge; None without Fröling Connect or while it fails (no stale mode)."""
+        if self._mode_coordinator is None or not self._mode_coordinator.last_update_success:
+            return None
         mode = self.sources.value(self._mode_key)
         return HOT_WATER_MODE_KEYS.get(mode) if isinstance(mode, int) else None
 
