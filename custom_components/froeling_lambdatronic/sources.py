@@ -94,6 +94,10 @@ class FroelingSources:
             self._decided[key] = self._decide(key)
         return self._decided[key]
 
+    def decisions(self) -> dict[str, Source | None]:
+        """Every key asked for so far and its source (for diagnostics)."""
+        return dict(sorted(self._decided.items()))
+
     def _decide(self, key: str) -> Source | None:
         if self._values is not None and key in self._flat(Source.MODBUS_VALUES):
             return Source.MODBUS_VALUES

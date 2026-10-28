@@ -1,6 +1,7 @@
 """Diagnostics of the Fröling Lambdatronic integration."""
 
 from dataclasses import asdict
+from datetime import time
 from typing import Any
 
 from homeassistant.components.diagnostics import async_redact_data
@@ -8,44 +9,81 @@ from homeassistant.const import CONF_PASSWORD, CONF_USERNAME
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 
-from .const import CONF_FACILITY_ID
-from .coordinator import FroelingConfigEntry
+from .const import CONF_FACILITY_ID, connection_type
+from .coordinator import CloudCoordinator, CloudInfoCoordinator, FroelingConfigEntry
 
-TO_REDACT = {CONF_PASSWORD, CONF_USERNAME, CONF_FACILITY_ID}
+# Fröling Connect also reports the pairing code, address and owner; the library drops them.
+TO_REDACT = {CONF_PASSWORD, CONF_USERNAME, CONF_FACILITY_ID, "equipment_number", "serial_number"}
 
 
-def _coordinator(coordinator: DataUpdateCoordinator[Any] | None) -> dict[str, Any] | None:
-    if coordinator is None:
-        return None
+def _coordinator(coordinator: DataUpdateCoordinator[Any]) -> dict[str, Any]:
     return {
         "last_update_success": coordinator.last_update_success,
         "last_exception": None if coordinator.last_exception is None else repr(coordinator.last_exception),
+    }
+
+
+def _modbus(coordinator: DataUpdateCoordinator[Any] | None) -> dict[str, Any] | None:
+    if coordinator is None:
+        return None
+    return {
+        **_coordinator(coordinator),
         "raw": None
         if coordinator.data is None
         else {str(k): v for k, v in sorted(coordinator.data.raw.items())},
     }
 
 
+def _cloud(cloud: CloudCoordinator | None) -> dict[str, Any] | None:
+    if cloud is None:
+        return None
+    result: dict[str, Any] = {
+        **_coordinator(cloud),
+        "details": cloud.details,
+        "skipped": sorted(cloud.skipped),
+    }
+    if (data := cloud.data) is not None:
+        result["values"] = {
+            key: value.isoformat() if isinstance(value, time) else value
+            for key, value in sorted(data.snapshot.values.items())
+        }
+        result["components"] = [
+            {
+                key: getattr(c, key)
+                for key in ("component_id", "raw_type", "number", "standard_name", "display_name")
+            }
+            for c in data.snapshot.components
+        ]
+        result["boiler_state"] = asdict(data.boiler_state)
+        result["errors"] = [asdict(error) for error in data.errors]
+    return result
+
+
+def _cloud_info(cloud_info: CloudInfoCoordinator | None) -> dict[str, Any] | None:
+    if cloud_info is None:
+        return None
+    result = _coordinator(cloud_info)
+    if (data := cloud_info.data) is not None:
+        result["system"] = async_redact_data(asdict(data.system), TO_REDACT)
+        result["header"] = asdict(data.header)
+    return result
+
+
 async def async_get_config_entry_diagnostics(
     hass: HomeAssistant, entry: FroelingConfigEntry
 ) -> dict[str, Any]:
-    """Configuration (redacted), equipment, raw registers and last errors."""
+    """Configuration (redacted), connection type, equipment, source per key, raw and cloud values."""
     data = entry.runtime_data
-    values = data.values
-    parameters = data.parameters
-    result: dict[str, Any] = {
+    return {
         "entry": {
             "data": async_redact_data(dict(entry.data), TO_REDACT),
             "options": dict(entry.options),
         },
+        "connection_type": connection_type(entry.data),
         "equipment": asdict(data.equipment),
-        "values": _coordinator(values),
-        "parameters": _coordinator(parameters),
-        "cloud": None,
+        "sources": data.sources.decisions(),
+        "values": _modbus(data.values),
+        "parameters": _modbus(data.parameters),
+        "cloud": _cloud(data.cloud),
+        "cloud_info": _cloud_info(data.cloud_info),
     }
-    if data.cloud is not None:
-        result["cloud"] = {
-            "last_update_success": data.cloud.last_update_success,
-            "state": None if data.cloud.data is None else asdict(data.cloud.data.boiler_state),
-        }
-    return result

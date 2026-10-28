@@ -24,7 +24,7 @@ class ComponentKind(StrEnum):
     CIRCULATION = "circulation"
 
 
-_DEVICE_TRANSLATION_KEYS = {
+DEVICE_TRANSLATION_KEYS = {
     ComponentKind.HEATING_CIRCUIT: "heating_circuit",
     ComponentKind.HOT_WATER: "hot_water",
     ComponentKind.BUFFER: "buffer",
@@ -91,7 +91,7 @@ def child_device_info(entry: FroelingConfigEntry, component: Component) -> Child
     if (name := connect_name(entry, component)) is not None:
         info["name"] = name
     else:
-        info["translation_key"] = _DEVICE_TRANSLATION_KEYS[component.kind]
+        info["translation_key"] = DEVICE_TRANSLATION_KEYS[component.kind]
         info["translation_placeholders"] = {"number": f"{component.number:02d}"}
     return info
 
