@@ -131,18 +131,28 @@ async def test_hybrid_mismatch(hass: HomeAssistant, mock_client: MagicMock) -> N
 @pytest.mark.usefixtures("mock_client")
 @pytest.mark.parametrize("connection", [ConnectionType.CLOUD, ConnectionType.HYBRID])
 @pytest.mark.parametrize(
-    ("room_sensors", "expected"),
-    [({1: True, 2: True}, [1, 2]), ({1: False, 2: True}, [2]), ({1: None, 2: False}, [])],
+    ("unknown", "details", "expected", "detail_reads"),
+    [
+        # Sub type 'OUT_TEMP_CRTL' has no room sensor; no detail is read.
+        ((), {}, [], 0),
+        # Otherwise only the picture URL of the detail tells.
+        ((1, 2), {"hc1": True, "hc2": False}, [1], 2),
+        ((2,), {"hc2": True}, [2], 1),
+        ((1,), {"hc1": None}, [], 1),
+    ],
 )
 async def test_room_sensors(
     hass: HomeAssistant,
     mock_cloud: MagicMock,
     connection: ConnectionType,
-    room_sensors: dict[int, bool | None],
+    unknown: tuple[int, ...],
+    details: dict[str, bool | None],
     expected: list[int],
+    detail_reads: int,
 ) -> None:
-    """The heating circuits with a room sensor come from the Connect components; unknown counts as none."""
-    mock_cloud.get_components.return_value = cloud_components(room_sensors)
+    """Heating circuits with a room sensor: from the component detail where the list does not tell."""
+    mock_cloud.get_components.return_value = cloud_components(unknown)
+    mock_cloud.detail_room_sensors = details
     result = await _start(hass, connection)
     if connection is ConnectionType.HYBRID:
         result = dict(await hass.config_entries.flow.async_configure(result["flow_id"], MODBUS_INPUT))
@@ -151,6 +161,32 @@ async def test_room_sensors(
 
     assert result["type"] is FlowResultType.CREATE_ENTRY
     assert result["data"][CONF_ROOM_SENSORS] == expected
+    if connection is ConnectionType.HYBRID:
+        # Connect only: the setup of the new entry reads every detail as well.
+        assert mock_cloud.get_component_detail.await_count == detail_reads
+
+
+@pytest.mark.usefixtures("mock_client")
+async def test_room_sensors_detail_fails(hass: HomeAssistant, mock_cloud: MagicMock) -> None:
+    """A failed detail read counts as no room sensor; the other circuits are still read."""
+    mock_cloud.get_components.return_value = cloud_components((1, 2))
+    mock_cloud.detail_room_sensors = {"hc2": True}
+    detail = mock_cloud.get_component_detail.side_effect
+    mock_cloud.get_component_detail.side_effect = lambda facility_id, component_id: (
+        _raise(ConnectionFailedError("down"))
+        if component_id == "300_3100"
+        else detail(facility_id, component_id)
+    )
+    result = await _start(hass, ConnectionType.CLOUD)
+
+    result = dict(await hass.config_entries.flow.async_configure(result["flow_id"], CLOUD_INPUT))
+
+    assert result["type"] is FlowResultType.CREATE_ENTRY
+    assert result["data"][CONF_ROOM_SENSORS] == [2]
+
+
+def _raise(err: Exception) -> None:
+    raise err
 
 
 async def test_multiple_facilities(hass: HomeAssistant, mock_cloud: MagicMock) -> None:
@@ -546,7 +582,8 @@ async def test_reconfigure_room_sensors(
     entry: MockConfigEntry = request.getfixturevalue(fixture)
     await setup_integration(hass, entry)
     hass.config_entries.async_update_entry(entry, data={**entry.data, CONF_ROOM_SENSORS: [2]})
-    mock_cloud.get_components.return_value = cloud_components({1: True, 2: False})
+    mock_cloud.get_components.return_value = cloud_components((1, 2))
+    mock_cloud.detail_room_sensors = {"hc1": True, "hc2": False}
     # The reload after the flow must not read Connect: the stored value is the one of the flow.
     mock_cloud.get_overview.side_effect = ConnectionFailedError("down")
     result = await _reconfigure(hass, entry, option)

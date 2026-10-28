@@ -1,8 +1,8 @@
 """The Fröling Lambdatronic integration."""
 
+import logging
 import re
 from collections.abc import Mapping
-from functools import partial
 from typing import Any
 
 from froeling_lambdatronic import Equipment, FroelingConnectClient, FroelingError, LambdatronicClient
@@ -33,7 +33,6 @@ from .const import (
     ISSUE_REMOTE_CONTROL_DISABLED,
     MANUFACTURER,
     MODEL,
-    room_sensor_circuits,
 )
 from .coordinator import (
     CloudCoordinator,
@@ -42,10 +41,13 @@ from .coordinator import (
     FroelingRuntimeData,
     ModbusParametersCoordinator,
     ModbusValuesCoordinator,
+    async_detect_room_sensors,
 )
 from .entity import DEVICE_TRANSLATION_KEYS, ComponentKind, child_device_info, components
 from .services import async_setup_services
 from .sources import FroelingSources
+
+_LOGGER = logging.getLogger(__name__)
 
 PLATFORMS = [
     Platform.BINARY_SENSOR,
@@ -137,11 +139,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: FroelingConfigEntry) -> 
             # Next to Modbus the cloud is optional: it never blocks or fails the setup.
             await cloud.async_refresh()
         await cloud_info.async_refresh()
-        # Before the platforms: the climate entities read the room sensors from the entry data.
-        _async_store_room_sensors(hass, entry, cloud)
-        entry.async_on_unload(
-            cloud.async_add_listener(partial(_async_store_room_sensors, hass, entry, cloud))
-        )
+        if CONF_ROOM_SENSORS not in entry.data:
+            # Before the platforms: the climate entities read the room sensors from the entry data.
+            await _async_detect_room_sensors(hass, entry, cloud_client, facility_id)
 
     entry.runtime_data = FroelingRuntimeData(
         modbus=modbus,
@@ -170,20 +170,21 @@ async def async_setup_entry(hass: HomeAssistant, entry: FroelingConfigEntry) -> 
     return True
 
 
-@callback
-def _async_store_room_sensors(
-    hass: HomeAssistant, entry: FroelingConfigEntry, cloud: CloudCoordinator
+async def _async_detect_room_sensors(
+    hass: HomeAssistant, entry: FroelingConfigEntry, client: FroelingConnectClient, facility_id: int
 ) -> None:
-    """Store the room sensors of the last successful Connect update in the entry data.
+    """Detect the room sensors of an entry from before 0.2.0b2 once and store them in the entry data.
 
-    The entry data cache them for starts without Connect; there is no update listener, so this
-    does not reload the entry. Changed room sensors take effect on the next start.
+    Nothing is stored if Fröling Connect fails: no room sensor for this start, the next start tries
+    again. There is no update listener, so storing does not reload the entry.
     """
-    if not cloud.last_update_success or cloud.data is None:
+    try:
+        components = await client.get_components(facility_id)
+        detected = await async_detect_room_sensors(client, facility_id, components, ignore_errors=False)
+    except FroelingError as err:
+        _LOGGER.debug("Room sensors not detected, Fröling Connect failed: %s", err)
         return
-    detected = room_sensor_circuits(cloud.data.snapshot.room_sensors)
-    if entry.data.get(CONF_ROOM_SENSORS) != detected:
-        hass.config_entries.async_update_entry(entry, data={**entry.data, CONF_ROOM_SENSORS: detected})
+    hass.config_entries.async_update_entry(entry, data={**entry.data, CONF_ROOM_SENSORS: detected})
 
 
 async def async_migrate_entry(hass: HomeAssistant, entry: FroelingConfigEntry) -> bool:

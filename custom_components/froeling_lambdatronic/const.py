@@ -23,8 +23,9 @@ CONF_PARAMETER_INTERVAL: Final = "parameter_interval"
 CONF_CLOUD_INTERVAL: Final = "cloud_interval"
 CONF_CLOUD: Final = "cloud"
 CONF_FACILITY_ID: Final = "facility_id"
-# Sorted numbers of the heating circuits with a room sensor, as reported by Fröling Connect; also the
-# cache for starts without Connect. Missing (entries of 0.2.0b1) means none.
+# Sorted numbers of the heating circuits with a room sensor, detected from the Fröling Connect component
+# details in the config flow; also the cache for starts without Connect. Missing (entries before
+# 0.2.0b2): detected once at the setup, no room sensor while Connect fails.
 CONF_ROOM_SENSORS: Final = "room_sensors"
 
 DEFAULT_SCAN_INTERVAL: Final = 30

@@ -1,7 +1,7 @@
 """Data update coordinators of the Fröling Lambdatronic integration."""
 
 import logging
-from collections.abc import Mapping
+from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
 from datetime import timedelta
 from typing import TYPE_CHECKING
@@ -9,11 +9,13 @@ from typing import TYPE_CHECKING
 from froeling_lambdatronic import (
     AuthenticationError,
     CloudBoilerState,
+    CloudComponent,
     CloudComponentDetail,
     CloudError,
     CloudHeader,
     CloudSnapshot,
     CloudSystemInfo,
+    ComponentType,
     Equipment,
     FroelingConnectClient,
     FroelingError,
@@ -41,12 +43,43 @@ from .const import (
     DOMAIN,
     ISSUE_REMOTE_CONTROL_DISABLED,
     MODEL,
+    room_sensor_circuits,
 )
 
 if TYPE_CHECKING:
     from .sources import FroelingSources
 
 _LOGGER = logging.getLogger(__name__)
+
+
+async def async_detect_room_sensors(
+    client: FroelingConnectClient,
+    facility_id: int,
+    components: Iterable[CloudComponent],
+    *,
+    ignore_errors: bool,
+) -> list[int]:
+    """Sorted numbers of the heating circuits with a room sensor.
+
+    The component list tells only 'no room sensor' (sub type 'OUT_TEMP_CRTL'); for any other
+    heating circuit the picture URL of its component detail is read. Only a known True counts.
+    With `ignore_errors` a failed detail read means no room sensor, otherwise the error is raised.
+    """
+    room_sensors: dict[str, bool | None] = {}
+    for component in components:
+        if component.type is not ComponentType.CIRCUIT or component.key is None:
+            continue
+        present = component.room_sensor
+        if present is None:
+            try:
+                detail = await client.get_component_detail(facility_id, component.component_id)
+            except FroelingError:
+                if not ignore_errors:
+                    raise
+            else:
+                present = detail.component.room_sensor
+        room_sensors[component.key] = present
+    return room_sensor_circuits(room_sensors)
 
 
 @dataclass

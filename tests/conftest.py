@@ -110,9 +110,18 @@ def mock_cloud() -> Generator[MagicMock]:
     )
     cloud.get_components = AsyncMock(return_value=list(CLOUD_COMPONENTS))
     cloud.get_overview = AsyncMock(return_value=CLOUD_OVERVIEW)
-    cloud.get_component_detail = AsyncMock(
-        side_effect=lambda facility_id, component_id: CLOUD_DETAILS_BY_ID[component_id]
-    )
+    # Tests set the room sensor flag of a detail's picture URL with `mock_cloud.detail_room_sensors`
+    # ({'hc1': True}); the fixtures report False.
+    cloud.detail_room_sensors = {}
+
+    def detail(facility_id: int, component_id: str) -> CloudComponentDetail:
+        found = CLOUD_DETAILS_BY_ID[component_id]
+        if (key := found.component.key) in cloud.detail_room_sensors:
+            component = replace(found.component, room_sensor=cloud.detail_room_sensors[key])
+            return replace(found, component=component)
+        return found
+
+    cloud.get_component_detail = AsyncMock(side_effect=detail)
     cloud.get_boiler_state = AsyncMock(return_value=CLOUD_STATE)
     cloud.get_errors = AsyncMock(return_value=list(CLOUD_ERRORS))
     cloud.get_system_info = AsyncMock(return_value=SYSTEM_INFO)
@@ -120,19 +129,13 @@ def mock_cloud() -> Generator[MagicMock]:
     cloud.set_value = AsyncMock()
     cloud.get_schedule = AsyncMock(side_effect=lambda facility_id, key: CLOUD_SCHEDULES[key])
     cloud.set_schedule = AsyncMock()
-    # Tests change cloud values with `mock_cloud.snapshot_changes` (None removes a key) and the room
-    # sensors of the heating circuits with `mock_cloud.room_sensor_changes` ({'hc1': True}).
+    # Tests change cloud values with `mock_cloud.snapshot_changes` (None removes a key).
     cloud.snapshot_changes = {}
-    cloud.room_sensor_changes = {}
 
     def snapshot(overview: CloudOverview, details: Sequence[CloudComponentDetail] = ()) -> CloudSnapshot:
         built = build_snapshot(overview, details)
         values = {**built.values, **cloud.snapshot_changes}
-        return replace(
-            built,
-            values={key: value for key, value in values.items() if value is not None},
-            room_sensors={**built.room_sensors, **cloud.room_sensor_changes},
-        )
+        return replace(built, values={key: value for key, value in values.items() if value is not None})
 
     with (
         patch("custom_components.froeling_lambdatronic.coordinator.build_snapshot", side_effect=snapshot),

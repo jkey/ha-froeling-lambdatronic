@@ -68,9 +68,8 @@ from .const import (
     MIN_SCAN_INTERVAL,
     ConnectionType,
     connection_type,
-    room_sensor_circuits,
 )
-from .coordinator import FroelingConfigEntry
+from .coordinator import FroelingConfigEntry, async_detect_room_sensors
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -337,8 +336,9 @@ class FroelingConfigFlow(ConfigFlow, domain=DOMAIN):
             except FroelingError as err:
                 return _cloud_error(err)
             self._cloud_equipment = equipment_from_components(components)
-            self._room_sensors = room_sensor_circuits(
-                {c.key: c.room_sensor for c in components if c.key is not None}
+            # A failed detail read only costs the room setpoint, not the setup.
+            self._room_sensors = await async_detect_room_sensors(
+                client, self._cloud[CONF_FACILITY_ID], components, ignore_errors=True
             )
         return None
 

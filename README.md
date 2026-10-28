@@ -245,8 +245,9 @@ gehen von „Fröling PE1 Pellet 20“, einem Heizkreis „Wohnbereich“ und De
 - Das **Raumsoll** in `climate` gibt es nur mit Raumfühler und Modbus. Ob ein Raumfühler
   angeschlossen ist, weiß nur Fröling Connect – ohne Fühler meldet Modbus konstant 20 °C. Das
   Raumsoll gibt es daher nur mit Hybrid; mit nur Modbus zeigt `climate` immer die Vorlauftemperatur.
-  Die Erkennung wird im Eintrag gespeichert und gilt auch bei einem Start ohne Connect; ein neu
-  angeschlossener Fühler wirkt ab dem nächsten Start. Es zeigt bei
+  Erkannt wird bei der Einrichtung und bei „Neu konfigurieren“ (für bestehende Einträge einmal
+  beim ersten Start mit erreichbarem Connect); das Ergebnis wird im Eintrag gespeichert und gilt
+  auch ohne Connect. Einen nachträglich angeschlossenen Fühler über „Neu konfigurieren“ übernehmen. Es zeigt bei
   Absenken/Dauerabsenken das Absenk-Soll; in Automatik entscheidet der Zeitplan aus Fröling
   Connect (in einer Phase Heiz-Soll, sonst Absenk-Soll). Ohne Zeitplan aus Connect zeigt und
   schreibt `climate` in Automatik das Heiz-Soll; das Absenk-Soll ist über das Preset „Absenken“
@@ -406,8 +407,9 @@ weekend, reordering pellets when the store runs low – see the German examples 
 Fröling Connect is an unofficial cloud API. The system operating mode and the boiler switch need
 Connect. One Modbus client per gateway. The room setpoint needs a room sensor and Modbus, and
 only Connect tells whether a room sensor is connected (Modbus reports 20 °C without one), so it
-is available with both connections only; the detection is stored and applies at starts without
-Connect, a newly connected sensor takes effect at the next start. In
+is available with both connections only; it is detected at setup and reconfiguration (for
+existing entries once at the first start with Connect reachable) and stored, so it also applies
+without Connect. Reconfigure after connecting a room sensor later. In
 automatic the Connect schedule decides between heating and setback setpoint. Without a schedule
 from Connect the climate entity shows and writes the heating setpoint in automatic; the setback
 setpoint is reachable via the setback preset. Faults can be shown but not acknowledged. Buffer

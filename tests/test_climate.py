@@ -82,9 +82,9 @@ def _hybrid_entry(room_sensors: list[int] | None) -> MockConfigEntry:
 
 
 @pytest.fixture
-def hc1_room_sensor(mock_cloud: MagicMock) -> None:
-    """Fröling Connect reports a room sensor at heating circuit 1."""
-    mock_cloud.room_sensor_changes = {"hc1": True}
+def room_sensor_entry() -> MockConfigEntry:
+    """Hybrid entry with a room sensor stored for heating circuit 1."""
+    return _hybrid_entry([1])
 
 
 @pytest.mark.usefixtures("mock_client", "mock_cloud")
@@ -115,12 +115,11 @@ def _with_mode(mode: int | None) -> object:
         (5, HVACMode.AUTO, "party", 20.0),
     ],
 )
-@pytest.mark.usefixtures("hc1_room_sensor")
 async def test_modes(
     hass: HomeAssistant,
     mock_client: MagicMock,
     mock_cloud: MagicMock,
-    mock_config_entry: MockConfigEntry,
+    room_sensor_entry: MockConfigEntry,
     mode: int,
     hvac_mode: HVACMode,
     preset: str | None,
@@ -128,7 +127,7 @@ async def test_modes(
 ) -> None:
     """Operating mode -> HVAC mode and preset; setting back uses the setback setpoint."""
     mock_client.read_parameters.return_value = _with_mode(mode)
-    await setup_integration(hass, mock_config_entry)
+    await setup_integration(hass, room_sensor_entry)
 
     state = hass.states.get(HC1)
     assert state is not None
@@ -159,12 +158,11 @@ async def _call(hass: HomeAssistant, service: str, entity_id: str, **data: objec
     )
 
 
-@pytest.mark.usefixtures("hc1_room_sensor")
 async def test_write_modbus(
-    hass: HomeAssistant, mock_client: MagicMock, mock_cloud: MagicMock, mock_config_entry: MockConfigEntry
+    hass: HomeAssistant, mock_client: MagicMock, mock_cloud: MagicMock, room_sensor_entry: MockConfigEntry
 ) -> None:
     """Hybrid: modes and the room setpoint are written via Modbus."""
-    await setup_integration(hass, mock_config_entry)
+    await setup_integration(hass, room_sensor_entry)
 
     await _call(hass, SERVICE_SET_HVAC_MODE, HC1, **{ATTR_HVAC_MODE: HVACMode.HEAT})
     await _call(hass, SERVICE_SET_PRESET_MODE, HC1, **{ATTR_PRESET_MODE: "party"})
@@ -207,16 +205,10 @@ async def test_cloud(
     mock_cloud.set_value.assert_awaited_once_with(FACILITY_ID, "hc1_operating_mode", 3)
 
 
-@pytest.mark.parametrize("room_sensor", [False, None])
 async def test_without_room_sensor(
-    hass: HomeAssistant,
-    mock_client: MagicMock,
-    mock_cloud: MagicMock,
-    mock_config_entry: MockConfigEntry,
-    room_sensor: bool | None,
+    hass: HomeAssistant, mock_client: MagicMock, mock_cloud: MagicMock, mock_config_entry: MockConfigEntry
 ) -> None:
-    """Connect reports no (or an unknown) room sensor: the placeholder 20.0 °C of Modbus is ignored."""
-    mock_cloud.room_sensor_changes = {"hc1": room_sensor}
+    """No room sensor stored: the placeholder 20.0 °C of Modbus is ignored, no target temperature."""
     await setup_integration(hass, mock_config_entry)
 
     state = hass.states.get(HC1)
@@ -226,12 +218,10 @@ async def test_without_room_sensor(
     assert not state.attributes[ATTR_SUPPORTED_FEATURES] & ClimateEntityFeature.TARGET_TEMPERATURE
 
 
-@pytest.mark.usefixtures("hc1_room_sensor")
-async def test_room_sensor(
-    hass: HomeAssistant, mock_client: MagicMock, mock_config_entry: MockConfigEntry
-) -> None:
-    """Connect reports a room sensor: room temperature and room setpoint (Modbus limits)."""
-    await setup_integration(hass, mock_config_entry)
+@pytest.mark.usefixtures("mock_client", "mock_cloud")
+async def test_room_sensor(hass: HomeAssistant, room_sensor_entry: MockConfigEntry) -> None:
+    """Room sensor stored for heating circuit 1: room temperature and room setpoint (Modbus limits)."""
+    await setup_integration(hass, room_sensor_entry)
 
     state = hass.states.get(HC1)
     assert state is not None
@@ -267,6 +257,7 @@ async def test_room_sensor_stored_while_connect_down(
     target: bool,
 ) -> None:
     """Connect unreachable at setup: the stored room sensors apply; none stored (0.2.0b1) means none."""
+    mock_cloud.get_components.side_effect = ConnectionFailedError("down")
     entry = _hybrid_entry(stored)
     mock_cloud.get_overview.side_effect = ConnectionFailedError("down")
     await setup_integration(hass, entry)
@@ -291,19 +282,18 @@ async def test_unavailable_without_remote_control(
 
 
 @pytest.mark.parametrize(("moment", "target"), [(HEATING_PHASE, 20.0), (SETBACK_PHASE, 17.0)])
-@pytest.mark.usefixtures("hc1_room_sensor")
 async def test_automatic_follows_schedule(
     hass: HomeAssistant,
     freezer: FrozenDateTimeFactory,
     mock_client: MagicMock,
     mock_cloud: MagicMock,
-    mock_config_entry: MockConfigEntry,
+    room_sensor_entry: MockConfigEntry,
     moment: str,
     target: float,
 ) -> None:
     """Automatic with a known schedule: heating setpoint inside a phase, setback setpoint outside."""
     freezer.move_to(moment)
-    await setup_integration(hass, mock_config_entry)
+    await setup_integration(hass, room_sensor_entry)
 
     state = hass.states.get(HC1)
     assert state is not None

@@ -35,7 +35,7 @@ from custom_components.froeling_lambdatronic.const import (
 from custom_components.froeling_lambdatronic.sources import Source
 
 from . import setup_integration
-from .const import CLOUD_COMPONENTS, EQUIPMENT_DATA, FACILITY_ID, entry_data
+from .const import CLOUD_COMPONENTS, EQUIPMENT_DATA, FACILITY_ID, cloud_components, entry_data
 
 BOILER_TEMPERATURE = "sensor.froling_pe1_boiler_temperature"
 
@@ -248,20 +248,28 @@ async def test_sources_modbus(
     assert raised.value.translation_key == "not_writable"
 
 
-@pytest.mark.usefixtures("mock_client")
-@pytest.mark.parametrize("connection", [ConnectionType.CLOUD, ConnectionType.HYBRID])
-async def test_setup_stores_room_sensors(
-    hass: HomeAssistant, mock_cloud: MagicMock, connection: ConnectionType
-) -> None:
-    """The room sensors of the first Connect update are stored without reloading the entry."""
-    entry = MockConfigEntry(
+def _entry_without_room_sensors(connection: ConnectionType) -> MockConfigEntry:
+    """An entry of 0.2.0b1: no room sensors stored."""
+    data = entry_data(connection)
+    del data[CONF_ROOM_SENSORS]
+    return MockConfigEntry(
         domain=DOMAIN,
         version=2,
         title="Fröling PE1",
-        unique_id="cloud:777" if connection is ConnectionType.CLOUD else "192.168.1.50:502:2",
-        data={**entry_data(connection), CONF_ROOM_SENSORS: [2]},
+        unique_id=f"cloud:{FACILITY_ID}" if connection is ConnectionType.CLOUD else "192.168.1.50:502:2",
+        data=data,
     )
-    mock_cloud.room_sensor_changes = {"hc1": True, "hc2": None}
+
+
+@pytest.mark.usefixtures("mock_client")
+@pytest.mark.parametrize("connection", [ConnectionType.CLOUD, ConnectionType.HYBRID])
+async def test_setup_detects_missing_room_sensors(
+    hass: HomeAssistant, mock_cloud: MagicMock, connection: ConnectionType
+) -> None:
+    """No room sensors stored: detected once from the component details, stored without a reload."""
+    entry = _entry_without_room_sensors(connection)
+    mock_cloud.get_components.return_value = cloud_components((1, 2))
+    mock_cloud.detail_room_sensors = {"hc1": True, "hc2": False}
 
     await setup_integration(hass, entry)
 
@@ -273,34 +281,56 @@ async def test_setup_stores_room_sensors(
     assert state is not None
     assert ("temperature" in state.attributes) is (connection is ConnectionType.HYBRID)
 
-
-@pytest.mark.usefixtures("mock_client")
-async def test_room_sensors_follow_later_updates(
-    hass: HomeAssistant, mock_cloud: MagicMock, mock_config_entry: MockConfigEntry
-) -> None:
-    """A Connect update after the setup refreshes the stored room sensors; a failed one keeps them."""
-    # An entry of 0.2.0b1 without stored room sensors.
-    data = {key: value for key, value in mock_config_entry.data.items() if key != CONF_ROOM_SENSORS}
-    entry = MockConfigEntry(domain=DOMAIN, version=2, unique_id=mock_config_entry.unique_id, data=data)
-    await setup_integration(hass, entry)
-    assert entry.data[CONF_ROOM_SENSORS] == []
+    # No further reads while running.
+    reads = mock_cloud.get_component_detail.await_count
+    mock_cloud.detail_room_sensors = {"hc1": False, "hc2": True}
     cloud = entry.runtime_data.cloud
     assert cloud is not None
-
-    mock_cloud.room_sensor_changes = {"hc2": True}
+    cloud.details = False
     await cloud.async_refresh()
-    assert entry.data[CONF_ROOM_SENSORS] == [2]
+    assert mock_cloud.get_component_detail.await_count == reads
+    assert entry.data[CONF_ROOM_SENSORS] == [1]
 
-    mock_cloud.get_overview.side_effect = ConnectionFailedError("down")
-    await cloud.async_refresh()
-    assert entry.data[CONF_ROOM_SENSORS] == [2]
+
+@pytest.mark.usefixtures("mock_client")
+@pytest.mark.parametrize("failing", ["get_components", "get_component_detail"])
+async def test_setup_room_sensors_connect_down(
+    hass: HomeAssistant, mock_cloud: MagicMock, failing: str
+) -> None:
+    """Connect fails while detecting: nothing stored (no room sensor this start), retried next start."""
+    entry = _entry_without_room_sensors(ConnectionType.HYBRID)
+    mock_cloud.get_components.return_value = cloud_components((1,))
+    working = getattr(mock_cloud, failing).side_effect
+    getattr(mock_cloud, failing).side_effect = ConnectionFailedError("down")
+
+    await setup_integration(hass, entry)
+
     assert entry.state is ConfigEntryState.LOADED
+    assert CONF_ROOM_SENSORS not in entry.data
+    state = hass.states.get("climate.froling_pe1_wohnbereich")
+    assert state is not None
+    assert "temperature" not in state.attributes
 
-    await hass.config_entries.async_unload(entry.entry_id)
-    mock_cloud.get_overview.side_effect = None
-    mock_cloud.room_sensor_changes = {"hc1": True}
-    await cloud.async_refresh()
-    assert entry.data[CONF_ROOM_SENSORS] == [2]
+    getattr(mock_cloud, failing).side_effect = working
+    mock_cloud.detail_room_sensors = {"hc1": True}
+    await hass.config_entries.async_reload(entry.entry_id)
+    await hass.async_block_till_done()
+    assert entry.data[CONF_ROOM_SENSORS] == [1]
+
+
+@pytest.mark.usefixtures("mock_client")
+async def test_setup_keeps_stored_room_sensors(
+    hass: HomeAssistant, mock_cloud: MagicMock, mock_config_entry: MockConfigEntry
+) -> None:
+    """Stored room sensors are not read again from Connect."""
+    mock_cloud.get_components.return_value = cloud_components((1, 2))
+    mock_cloud.detail_room_sensors = {"hc1": True}
+
+    await setup_integration(hass, mock_config_entry)
+
+    assert mock_config_entry.data[CONF_ROOM_SENSORS] == []
+    mock_cloud.get_components.assert_not_awaited()
+    mock_cloud.get_component_detail.assert_not_awaited()
 
 
 async def test_hybrid_cloud_failure_does_not_block_setup(

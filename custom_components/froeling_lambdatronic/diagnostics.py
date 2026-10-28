@@ -13,7 +13,8 @@ from .const import CONF_FACILITY_ID, connection_type
 from .coordinator import CloudCoordinator, CloudInfoCoordinator, FroelingConfigEntry
 
 # Fröling Connect also reports the pairing code, address and owner; the library drops them. The
-# component names are given by the user in Connect.
+# component names are given by the user in Connect; async_redact_data keeps empty values, so an
+# empty standard_name stays ''.
 TO_REDACT = {
     CONF_PASSWORD,
     CONF_USERNAME,
@@ -68,6 +69,8 @@ def _cloud(cloud: CloudCoordinator | None) -> dict[str, Any] | None:
         result["components"] = async_redact_data(
             [{key: getattr(c, key) for key in COMPONENT_FIELDS} for c in data.snapshot.components], TO_REDACT
         )
+        # As read by the coordinator (with Modbus from the overview only); the entry data hold the
+        # room sensors detected from the component details.
         result["room_sensors"] = dict(sorted(data.snapshot.room_sensors.items()))
         result["boiler_state"] = asdict(data.boiler_state)
         result["errors"] = [asdict(error) for error in data.errors]
