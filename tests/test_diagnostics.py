@@ -18,12 +18,14 @@ async def test_diagnostics(
     any_config_entry: MockConfigEntry,
     snapshot: SnapshotAssertion,
 ) -> None:
-    """Credentials, facility and equipment number are redacted; sources and values are included."""
+    """Credentials, facility, equipment number and the component names given in Connect are redacted."""
     await setup_integration(hass, any_config_entry)
 
     result = await get_diagnostics_for_config_entry(hass, hass_client, any_config_entry)
 
     assert result == snapshot(exclude=props("created_at", "modified_at"))
     text = str(result)
-    for secret in ("geheim", "kessel@example.com", "100000001", "Musterstraße", "Mustermann"):
+    secrets = ("geheim", "kessel@example.com", "100000001", "Musterstraße", "Mustermann")
+    names = ("Wohnbereich", "Anbau", "Brauchwasser", "Heizkreis 01", "Zirku. Pumpe")
+    for secret in (*secrets, *names):
         assert secret not in text

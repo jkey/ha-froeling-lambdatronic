@@ -12,8 +12,26 @@ from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 from .const import CONF_FACILITY_ID, connection_type
 from .coordinator import CloudCoordinator, CloudInfoCoordinator, FroelingConfigEntry
 
-# Fröling Connect also reports the pairing code, address and owner; the library drops them.
-TO_REDACT = {CONF_PASSWORD, CONF_USERNAME, CONF_FACILITY_ID, "equipment_number", "serial_number"}
+# Fröling Connect also reports the pairing code, address and owner; the library drops them. The
+# component names are given by the user in Connect.
+TO_REDACT = {
+    CONF_PASSWORD,
+    CONF_USERNAME,
+    CONF_FACILITY_ID,
+    "equipment_number",
+    "serial_number",
+    "standard_name",
+    "display_name",
+}
+COMPONENT_FIELDS = (
+    "component_id",
+    "raw_type",
+    "number",
+    "sub_type",
+    "room_sensor",
+    "standard_name",
+    "display_name",
+)
 
 
 def _coordinator(coordinator: DataUpdateCoordinator[Any]) -> dict[str, Any]:
@@ -47,13 +65,10 @@ def _cloud(cloud: CloudCoordinator | None) -> dict[str, Any] | None:
             key: value.isoformat() if isinstance(value, time) else value
             for key, value in sorted(data.snapshot.values.items())
         }
-        result["components"] = [
-            {
-                key: getattr(c, key)
-                for key in ("component_id", "raw_type", "number", "standard_name", "display_name")
-            }
-            for c in data.snapshot.components
-        ]
+        result["components"] = async_redact_data(
+            [{key: getattr(c, key) for key in COMPONENT_FIELDS} for c in data.snapshot.components], TO_REDACT
+        )
+        result["room_sensors"] = dict(sorted(data.snapshot.room_sensors.items()))
         result["boiler_state"] = asdict(data.boiler_state)
         result["errors"] = [asdict(error) for error in data.errors]
     return result
