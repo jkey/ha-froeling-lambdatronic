@@ -120,13 +120,19 @@ def mock_cloud() -> Generator[MagicMock]:
     cloud.set_value = AsyncMock()
     cloud.get_schedule = AsyncMock(side_effect=lambda facility_id, key: CLOUD_SCHEDULES[key])
     cloud.set_schedule = AsyncMock()
-    # Tests change cloud values with `mock_cloud.snapshot_changes` (None removes a key).
+    # Tests change cloud values with `mock_cloud.snapshot_changes` (None removes a key) and the room
+    # sensors of the heating circuits with `mock_cloud.room_sensor_changes` ({'hc1': True}).
     cloud.snapshot_changes = {}
+    cloud.room_sensor_changes = {}
 
     def snapshot(overview: CloudOverview, details: Sequence[CloudComponentDetail] = ()) -> CloudSnapshot:
         built = build_snapshot(overview, details)
         values = {**built.values, **cloud.snapshot_changes}
-        return replace(built, values={key: value for key, value in values.items() if value is not None})
+        return replace(
+            built,
+            values={key: value for key, value in values.items() if value is not None},
+            room_sensors={**built.room_sensors, **cloud.room_sensor_changes},
+        )
 
     with (
         patch("custom_components.froeling_lambdatronic.coordinator.build_snapshot", side_effect=snapshot),

@@ -1,6 +1,8 @@
 """Test data: Modbus values of the real register snapshot of 24.10.2026, anonymised cloud fixtures."""
 
 import json
+from collections.abc import Iterable, Mapping
+from dataclasses import replace
 from datetime import time
 from pathlib import Path
 from typing import Any
@@ -10,6 +12,7 @@ from froeling_lambdatronic import (
     BufferValues,
     CirculationValues,
     CloudBoilerState,
+    CloudComponent,
     Equipment,
     HeatingCircuitParameters,
     HeatingCircuitValues,
@@ -39,6 +42,7 @@ from custom_components.froeling_lambdatronic.const import (
     CONF_HEATING_CIRCUITS,
     CONF_HOT_WATER,
     CONF_PARAMETER_INTERVAL,
+    CONF_ROOM_SENSORS,
     CONF_SCAN_INTERVAL,
     CONF_SLAVE,
     ConnectionType,
@@ -143,6 +147,16 @@ CLOUD_STATE = CloudBoilerState(operating_mode=OperatingMode.AUTOMATIC, remote_co
 CLOUD_DETAILS_BY_ID = {detail.component.component_id: detail for detail in CLOUD_DETAILS}
 
 
+def cloud_components(room_sensors: Mapping[int, bool | None]) -> list[CloudComponent]:
+    """The component list with the room sensor of the given heating circuits changed."""
+    return [
+        replace(c, room_sensor=room_sensors[c.number])
+        if c.key == f"hc{c.number}" and c.number in room_sensors
+        else c
+        for c in CLOUD_COMPONENTS
+    ]
+
+
 EQUIPMENT_DATA = {
     CONF_HEATING_CIRCUITS: [1, 2],
     CONF_HOT_WATER: [1],
@@ -151,9 +165,11 @@ EQUIPMENT_DATA = {
 }
 
 
-def entry_data(connection: ConnectionType = ConnectionType.HYBRID) -> dict[str, Any]:
-    """Data of a configured entry."""
-    data: dict[str, Any] = {CONF_EQUIPMENT: dict(EQUIPMENT_DATA)}
+def entry_data(
+    connection: ConnectionType = ConnectionType.HYBRID, room_sensors: Iterable[int] = ()
+) -> dict[str, Any]:
+    """Data of a configured entry; the fixtures report no room sensor."""
+    data: dict[str, Any] = {CONF_EQUIPMENT: dict(EQUIPMENT_DATA), CONF_ROOM_SENSORS: list(room_sensors)}
     if connection is not ConnectionType.CLOUD:
         data.update({CONF_HOST: HOST, CONF_PORT: 502, CONF_SLAVE: 2})
     if connection is not ConnectionType.MODBUS:

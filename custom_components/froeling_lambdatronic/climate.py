@@ -18,7 +18,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 from homeassistant.util import dt as dt_util
 
-from .const import HEATING_CIRCUIT_MODE_KEYS
+from .const import CONF_ROOM_SENSORS, HEATING_CIRCUIT_MODE_KEYS
 from .coordinator import FroelingConfigEntry
 from .entity import Component, ComponentKind, FroelingWritableEntity
 from .sources import FroelingSources, Source
@@ -42,15 +42,20 @@ async def async_setup_entry(
     entry: FroelingConfigEntry,
     async_add_entities: AddConfigEntryEntitiesCallback,
 ) -> None:
-    """Set up a climate entity for every heating circuit whose operating mode can be read and written."""
+    """Set up a climate entity for every heating circuit whose operating mode can be read and written.
+
+    Which heating circuits have a room sensor only Fröling Connect tells (stored in the entry data);
+    Modbus reports 20.0 °C without one.
+    """
     data = entry.runtime_data
     sources = data.sources
+    room_sensors = entry.data.get(CONF_ROOM_SENSORS, [])
     entities: list[FroelingClimate] = []
     for n in data.equipment.heating_circuits:
         component = Component(ComponentKind.HEATING_CIRCUIT, n)
         key = f"{component.key_prefix}operating_mode"
         if (source := sources.source(key)) is not None and sources.writable(key):
-            entities.append(FroelingClimate(sources, component, source))
+            entities.append(FroelingClimate(sources, component, source, room_sensor=n in room_sensors))
     async_add_entities(entities)
 
 
@@ -64,9 +69,10 @@ def _in_phase(schedule: Mapping[Weekday, tuple[Phase, ...]], now: datetime) -> b
 class FroelingClimate(FroelingWritableEntity, ClimateEntity):
     """Heating circuit: operating mode as HVAC mode and preset, room or flow temperature.
 
-    The target temperature is offered only with a room sensor: without it the room setpoint has
-    no effect. Heating and setback setpoint are Modbus settings (no known cloud counterpart). In
-    automatic the schedule from Fröling Connect, if known, tells which of both is active.
+    The target temperature is offered only with a room sensor (known from Fröling Connect): without
+    it the room setpoint has no effect. Heating and setback setpoint are Modbus settings (no known
+    cloud counterpart). In automatic the schedule from Fröling Connect, if known, tells which of
+    both is active.
     """
 
     entity_description = HEATING_CIRCUIT
@@ -74,7 +80,9 @@ class FroelingClimate(FroelingWritableEntity, ClimateEntity):
     _attr_precision = PRECISION_HALVES
     _attr_target_temperature_step = PRECISION_HALVES
 
-    def __init__(self, sources: FroelingSources, component: Component, source: Source) -> None:
+    def __init__(
+        self, sources: FroelingSources, component: Component, source: Source, *, room_sensor: bool
+    ) -> None:
         super().__init__(
             sources, component, HEATING_CIRCUIT.key, source, value_key=f"{component.key_prefix}operating_mode"
         )
@@ -88,7 +96,7 @@ class FroelingClimate(FroelingWritableEntity, ClimateEntity):
         self._attr_supported_features = (
             ClimateEntityFeature.TURN_OFF | ClimateEntityFeature.TURN_ON | ClimateEntityFeature.PRESET_MODE
         )
-        self._room_sensor = sources.value(self._room_key) is not None and all(
+        self._room_sensor = room_sensor and all(
             sources.writable(key) and sources.source(key) is not None for key in self._setpoint_keys
         )
         if self._room_sensor:

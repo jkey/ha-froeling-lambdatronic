@@ -51,6 +51,7 @@ from .const import (
     CONF_HEATING_CIRCUITS,
     CONF_HOT_WATER,
     CONF_PARAMETER_INTERVAL,
+    CONF_ROOM_SENSORS,
     CONF_SCAN_INTERVAL,
     CONF_SLAVE,
     DEFAULT_CLOUD_INTERVAL,
@@ -67,6 +68,7 @@ from .const import (
     MIN_SCAN_INTERVAL,
     ConnectionType,
     connection_type,
+    room_sensor_circuits,
 )
 from .coordinator import FroelingConfigEntry
 
@@ -141,6 +143,8 @@ class FroelingConfigFlow(ConfigFlow, domain=DOMAIN):
         self._cloud: dict[str, Any] | None = None
         self._modbus_equipment: Equipment | None = None
         self._cloud_equipment: Equipment | None = None
+        # Heating circuits with a room sensor, read with the Connect components.
+        self._room_sensors: list[int] = []
         self._cloud_client: FroelingConnectClient | None = None
         self._facilities: list[Facility] = []
         self._title = TITLE
@@ -333,6 +337,9 @@ class FroelingConfigFlow(ConfigFlow, domain=DOMAIN):
             except FroelingError as err:
                 return _cloud_error(err)
             self._cloud_equipment = equipment_from_components(components)
+            self._room_sensors = room_sensor_circuits(
+                {c.key: c.room_sensor for c in components if c.key is not None}
+            )
         return None
 
     async def _async_detect(self, host: str, port: int, slave: int) -> Equipment:
@@ -387,7 +394,12 @@ class FroelingConfigFlow(ConfigFlow, domain=DOMAIN):
             if detected is not None:
                 equipment = detected if equipment is None else merge_equipment(equipment, detected)[0]
         assert equipment is not None
-        data: dict[str, Any] = {**(self._modbus or {}), CONF_EQUIPMENT: equipment_data(equipment)}
+        data: dict[str, Any] = {
+            **(self._modbus or {}),
+            CONF_EQUIPMENT: equipment_data(equipment),
+            # Only Fröling Connect tells whether a room sensor is connected.
+            CONF_ROOM_SENSORS: self._room_sensors if self._cloud is not None else [],
+        }
         if self._cloud is not None:
             data[CONF_CLOUD] = dict(self._cloud)
         if self.source == SOURCE_RECONFIGURE:

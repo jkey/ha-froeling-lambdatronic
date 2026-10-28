@@ -32,7 +32,7 @@ Geräte und Entitäten heißen bei allen drei Arten gleich. Die Integration nutz
 | Kesselstellgröße, Einschub, Saugzugdrehzahl, Anlagen-Soll errechnet | ✔ | – | ✔ |
 | Saugzug-Ansteuerung, Pufferladezustand, Heizkreispumpe | – | ✔ | ✔ (Pufferladezustand, Pumpe) |
 | Einstellungen (Heizkurve, Absenkung, Heizgrenzen, Frostschutz, Boiler, Puffer, Zirkulation) | ✔ | ✔ | ✔ (Modbus) |
-| Raumsoll in `climate` (nur mit Raumfühler) | ✔ | – | ✔ |
+| Raumsoll in `climate` (nur mit Raumfühler) | – | – | ✔ |
 | Anlagen-Betriebsart umschalten, Schalter „Kessel“ | – | ✔ | ✔ |
 | Boiler-Betriebsart (Automatik/Extraladen) | – | ✔ | ✔ |
 | 2. Pelletbefüllung einstellen | – | ✔ | ✔ |
@@ -144,7 +144,7 @@ Softwarestände.
 | Kessel (binär) | Störung aktiv, Kesselanforderung, Fröling Connect (Verbindung, Diagnose) |
 | Kessel (Diagnose) | Betriebsstunden, Stunden im Heizen, Brennerstarts, Heizstunden bis Asche entleeren, Stunden seit Wartung, Stunden in Teillast, Verbunden seit und Letztes Signal (beide deaktiviert), Taste „Parameter neu lesen“ |
 | Kessel (Einstellungen) | Kessel-Solltemperatur, Pelletlager Restbestand und Mindestbestand (t), Anlagen-Betriebsart (Automatik/Brauchwasser/Dauerlast), Schalter „Kessel“ und „Automatische Austragung“, Uhrzeiten 1. und 2. Pelletbefüllung, Tasten „Asche-Zähler zurücksetzen“ und „Pellet-Teilzähler zurücksetzen“ |
-| Heizkreis | `climate`: Aus/Automatik/Heizen (= Extraheizen) und Presets Automatik, Extraheizen, Absenken, Dauerabsenken, Party; Ist = Raumtemperatur mit Raumfühler, sonst Vorlauf; Raumsoll nur mit Raumfühler; Heizen/Leerlauf aus der Heizkreispumpe (Connect). Dazu Vorlauf Ist, Vorlauf Soll, Vorlauf laut Heizkurve (Attribut `curve`, nicht aufgezeichnet), Raumtemperatur (deaktiviert), Pumpe (binär) |
+| Heizkreis | `climate`: Aus/Automatik/Heizen (= Extraheizen) und Presets Automatik, Extraheizen, Absenken, Dauerabsenken, Party; Ist = Raumtemperatur mit Raumfühler, sonst Vorlauf; Raumsoll nur mit Raumfühler (Hybrid); Heizen/Leerlauf aus der Heizkreispumpe (Connect). Dazu Vorlauf Ist, Vorlauf Soll, Vorlauf laut Heizkurve (Attribut `curve`, nicht aufgezeichnet), Raumtemperatur (deaktiviert), Pumpe (binär) |
 | Heizkreis (Einstellungen) | Heizkurve Vorlauf bei plus/minus 10 °C, Absenkung, Heizgrenze Heiz- und Absenkbetrieb, Frostschutz, Pumpe aus unter Vorlauf-Soll, Überhitzungsschutz ab Puffer oben |
 | Boiler | `water_heater`: Temperatur oben, Solltemperatur, mit Connect Betriebsart Automatik/Extraladen; Pumpe; Einstellung „Nachladen unter“ |
 | Puffer | Temperatur oben und unten, Pumpe, Ladezustand, Zündung unter Puffertemperatur (Diagnose, deaktiviert), Einstellung „Heizkreisfreigabe ab“ |
@@ -242,7 +242,11 @@ gehen von „Fröling PE1 Pellet 20“, einem Heizkreis „Wohnbereich“ und De
 - Die **Anlagen-Betriebsart** und der Schalter „Kessel“ lassen sich nur über Connect schalten;
   per Modbus ist die Betriebsart nur lesbar.
 - **Ein Client pro Gateway:** Fragen zwei Programme gleichzeitig, vertauscht das Gateway Antworten.
-- Das **Raumsoll** in `climate` gibt es nur mit Raumfühler und Modbus. Es zeigt bei
+- Das **Raumsoll** in `climate` gibt es nur mit Raumfühler und Modbus. Ob ein Raumfühler
+  angeschlossen ist, weiß nur Fröling Connect – ohne Fühler meldet Modbus konstant 20 °C. Das
+  Raumsoll gibt es daher nur mit Hybrid; mit nur Modbus zeigt `climate` immer die Vorlauftemperatur.
+  Die Erkennung wird im Eintrag gespeichert und gilt auch bei einem Start ohne Connect; ein neu
+  angeschlossener Fühler wirkt ab dem nächsten Start. Es zeigt bei
   Absenken/Dauerabsenken das Absenk-Soll; in Automatik entscheidet der Zeitplan aus Fröling
   Connect (in einer Phase Heiz-Soll, sonst Absenk-Soll). Ohne Zeitplan aus Connect zeigt und
   schreibt `climate` in Automatik das Heiz-Soll; das Absenk-Soll ist über das Preset „Absenken“
@@ -303,7 +307,7 @@ boiler (reports welcome as issues).
 | Boiler control output, feed rate, induced draught speed, calculated setpoint | ✔ | – | ✔ |
 | Induced draught control, buffer charge, heating circuit pump | – | ✔ | ✔ (charge, pump) |
 | Settings (heating curve, setback, heating limits, frost protection, DHW, buffer, circulation) | ✔ | ✔ | ✔ (Modbus) |
-| Room setpoint in `climate` (room sensor only) | ✔ | – | ✔ |
+| Room setpoint in `climate` (room sensor only) | – | – | ✔ |
 | System operating mode, boiler switch | – | ✔ | ✔ |
 | DHW operating mode (automatic/extra charge) | – | ✔ | ✔ |
 | Setting the 2nd pellet filling | – | ✔ | ✔ |
@@ -365,7 +369,7 @@ A boiler device with child devices for heating circuits, DHW tanks, buffers and 
 pump, named as in Fröling Connect or by the Fröling scheme ("Heating circuit 01", "DHW tank 01",
 "Buffer 01", "Circulation pump"); names set in Home Assistant stay. Highlights: `climate` per
 heating circuit (off/auto/heat, presets automatic, extra heating, setback, permanent setback,
-party; room setpoint only with a room sensor), `water_heater` per DHW tank (setpoint, with
+party; room setpoint only with a room sensor, Modbus and Connect), `water_heater` per DHW tank (setpoint, with
 Connect automatic/extra charge), sensors for temperatures, states, counters and the fault (with
 Connect attributes `since` and `history`), numbers for all customer settings, switches for the
 boiler (Connect) and the automatic feed, times for the pellet fillings, buttons to read the
@@ -400,7 +404,10 @@ weekend, reordering pellets when the store runs low – see the German examples 
 ## Known limitations
 
 Fröling Connect is an unofficial cloud API. The system operating mode and the boiler switch need
-Connect. One Modbus client per gateway. The room setpoint needs a room sensor and Modbus; in
+Connect. One Modbus client per gateway. The room setpoint needs a room sensor and Modbus, and
+only Connect tells whether a room sensor is connected (Modbus reports 20 °C without one), so it
+is available with both connections only; the detection is stored and applies at starts without
+Connect, a newly connected sensor takes effect at the next start. In
 automatic the Connect schedule decides between heating and setback setpoint. Without a schedule
 from Connect the climate entity shows and writes the heating setpoint in automatic; the setback
 setpoint is reachable via the setback preset. Faults can be shown but not acknowledged. Buffer

@@ -2,6 +2,7 @@
 
 import re
 from collections.abc import Mapping
+from functools import partial
 from typing import Any
 
 from froeling_lambdatronic import Equipment, FroelingConnectClient, FroelingError, LambdatronicClient
@@ -24,6 +25,7 @@ from .const import (
     CONF_FACILITY_ID,
     CONF_HEATING_CIRCUITS,
     CONF_HOT_WATER,
+    CONF_ROOM_SENSORS,
     CONF_SLAVE,
     DEFAULT_CLOUD_INTERVAL,
     DOMAIN,
@@ -31,6 +33,7 @@ from .const import (
     ISSUE_REMOTE_CONTROL_DISABLED,
     MANUFACTURER,
     MODEL,
+    room_sensor_circuits,
 )
 from .coordinator import (
     CloudCoordinator,
@@ -134,6 +137,11 @@ async def async_setup_entry(hass: HomeAssistant, entry: FroelingConfigEntry) -> 
             # Next to Modbus the cloud is optional: it never blocks or fails the setup.
             await cloud.async_refresh()
         await cloud_info.async_refresh()
+        # Before the platforms: the climate entities read the room sensors from the entry data.
+        _async_store_room_sensors(hass, entry, cloud)
+        entry.async_on_unload(
+            cloud.async_add_listener(partial(_async_store_room_sensors, hass, entry, cloud))
+        )
 
     entry.runtime_data = FroelingRuntimeData(
         modbus=modbus,
@@ -160,6 +168,22 @@ async def async_setup_entry(hass: HomeAssistant, entry: FroelingConfigEntry) -> 
     _async_update_child_devices(hass, entry, equipment)
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
     return True
+
+
+@callback
+def _async_store_room_sensors(
+    hass: HomeAssistant, entry: FroelingConfigEntry, cloud: CloudCoordinator
+) -> None:
+    """Store the room sensors of the last successful Connect update in the entry data.
+
+    The entry data cache them for starts without Connect; there is no update listener, so this
+    does not reload the entry. Changed room sensors take effect on the next start.
+    """
+    if not cloud.last_update_success or cloud.data is None:
+        return
+    detected = room_sensor_circuits(cloud.data.snapshot.room_sensors)
+    if entry.data.get(CONF_ROOM_SENSORS) != detected:
+        hass.config_entries.async_update_entry(entry, data={**entry.data, CONF_ROOM_SENSORS: detected})
 
 
 async def async_migrate_entry(hass: HomeAssistant, entry: FroelingConfigEntry) -> bool:

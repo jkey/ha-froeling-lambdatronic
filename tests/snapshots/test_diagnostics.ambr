@@ -189,6 +189,8 @@
             1,
           ]),
         }),
+        'room_sensors': list([
+        ]),
       }),
       'options': dict({
         'cloud_interval': 2,
@@ -447,6 +449,8 @@
         }),
         'host': '192.168.1.50',
         'port': 502,
+        'room_sensors': list([
+        ]),
         'slave': 2,
       }),
       'options': dict({
@@ -587,6 +591,8 @@
         }),
         'host': '192.168.1.50',
         'port': 502,
+        'room_sensors': list([
+        ]),
         'slave': 2,
       }),
       'options': dict({

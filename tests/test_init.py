@@ -27,6 +27,7 @@ from custom_components.froeling_lambdatronic.const import (
     CONF_CIRCULATION_PUMP,
     CONF_EQUIPMENT,
     CONF_HEATING_CIRCUITS,
+    CONF_ROOM_SENSORS,
     DOMAIN,
     ConnectionType,
     connection_type,
@@ -245,6 +246,61 @@ async def test_sources_modbus(
     with pytest.raises(HomeAssistantError) as raised:
         await sources.async_write("system_state", 2)
     assert raised.value.translation_key == "not_writable"
+
+
+@pytest.mark.usefixtures("mock_client")
+@pytest.mark.parametrize("connection", [ConnectionType.CLOUD, ConnectionType.HYBRID])
+async def test_setup_stores_room_sensors(
+    hass: HomeAssistant, mock_cloud: MagicMock, connection: ConnectionType
+) -> None:
+    """The room sensors of the first Connect update are stored without reloading the entry."""
+    entry = MockConfigEntry(
+        domain=DOMAIN,
+        version=2,
+        title="Fröling PE1",
+        unique_id="cloud:777" if connection is ConnectionType.CLOUD else "192.168.1.50:502:2",
+        data={**entry_data(connection), CONF_ROOM_SENSORS: [2]},
+    )
+    mock_cloud.room_sensor_changes = {"hc1": True, "hc2": None}
+
+    await setup_integration(hass, entry)
+
+    assert entry.state is ConfigEntryState.LOADED
+    assert entry.data[CONF_ROOM_SENSORS] == [1]
+    mock_cloud.get_overview.assert_awaited_once()
+    # Stored before the platforms: the room setpoint (Modbus only) is offered at the first start.
+    state = hass.states.get("climate.froling_pe1_wohnbereich")
+    assert state is not None
+    assert ("temperature" in state.attributes) is (connection is ConnectionType.HYBRID)
+
+
+@pytest.mark.usefixtures("mock_client")
+async def test_room_sensors_follow_later_updates(
+    hass: HomeAssistant, mock_cloud: MagicMock, mock_config_entry: MockConfigEntry
+) -> None:
+    """A Connect update after the setup refreshes the stored room sensors; a failed one keeps them."""
+    # An entry of 0.2.0b1 without stored room sensors.
+    data = {key: value for key, value in mock_config_entry.data.items() if key != CONF_ROOM_SENSORS}
+    entry = MockConfigEntry(domain=DOMAIN, version=2, unique_id=mock_config_entry.unique_id, data=data)
+    await setup_integration(hass, entry)
+    assert entry.data[CONF_ROOM_SENSORS] == []
+    cloud = entry.runtime_data.cloud
+    assert cloud is not None
+
+    mock_cloud.room_sensor_changes = {"hc2": True}
+    await cloud.async_refresh()
+    assert entry.data[CONF_ROOM_SENSORS] == [2]
+
+    mock_cloud.get_overview.side_effect = ConnectionFailedError("down")
+    await cloud.async_refresh()
+    assert entry.data[CONF_ROOM_SENSORS] == [2]
+    assert entry.state is ConfigEntryState.LOADED
+
+    await hass.config_entries.async_unload(entry.entry_id)
+    mock_cloud.get_overview.side_effect = None
+    mock_cloud.room_sensor_changes = {"hc1": True}
+    await cloud.async_refresh()
+    assert entry.data[CONF_ROOM_SENSORS] == [2]
 
 
 async def test_hybrid_cloud_failure_does_not_block_setup(

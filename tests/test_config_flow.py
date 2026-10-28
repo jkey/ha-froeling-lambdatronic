@@ -25,6 +25,7 @@ from custom_components.froeling_lambdatronic.const import (
     CONF_FACILITY_ID,
     CONF_HEATING_CIRCUITS,
     CONF_PARAMETER_INTERVAL,
+    CONF_ROOM_SENSORS,
     CONF_SCAN_INTERVAL,
     CONF_SLAVE,
     DOMAIN,
@@ -41,6 +42,7 @@ from .const import (
     PASSWORD,
     UNIQUE_ID,
     USERNAME,
+    cloud_components,
     entry_data,
 )
 
@@ -124,6 +126,31 @@ async def test_hybrid_mismatch(hass: HomeAssistant, mock_client: MagicMock) -> N
 
     assert result["type"] is FlowResultType.CREATE_ENTRY
     assert result["data"][CONF_EQUIPMENT] == {**EQUIPMENT_DATA, CONF_HEATING_CIRCUITS: [1, 2, 3]}
+
+
+@pytest.mark.usefixtures("mock_client")
+@pytest.mark.parametrize("connection", [ConnectionType.CLOUD, ConnectionType.HYBRID])
+@pytest.mark.parametrize(
+    ("room_sensors", "expected"),
+    [({1: True, 2: True}, [1, 2]), ({1: False, 2: True}, [2]), ({1: None, 2: False}, [])],
+)
+async def test_room_sensors(
+    hass: HomeAssistant,
+    mock_cloud: MagicMock,
+    connection: ConnectionType,
+    room_sensors: dict[int, bool | None],
+    expected: list[int],
+) -> None:
+    """The heating circuits with a room sensor come from the Connect components; unknown counts as none."""
+    mock_cloud.get_components.return_value = cloud_components(room_sensors)
+    result = await _start(hass, connection)
+    if connection is ConnectionType.HYBRID:
+        result = dict(await hass.config_entries.flow.async_configure(result["flow_id"], MODBUS_INPUT))
+
+    result = dict(await hass.config_entries.flow.async_configure(result["flow_id"], CLOUD_INPUT))
+
+    assert result["type"] is FlowResultType.CREATE_ENTRY
+    assert result["data"][CONF_ROOM_SENSORS] == expected
 
 
 async def test_multiple_facilities(hass: HomeAssistant, mock_cloud: MagicMock) -> None:
@@ -493,3 +520,38 @@ async def test_options(hass: HomeAssistant, any_config_entry: MockConfigEntry) -
     assert result["type"] is FlowResultType.CREATE_ENTRY
     assert any_config_entry.options == user_input
     assert any_config_entry.state is ConfigEntryState.LOADED
+
+
+@pytest.mark.parametrize(
+    ("fixture", "option", "user_input", "expected"),
+    [
+        ("mock_config_entry", "reconfigure_modbus", MODBUS_INPUT, [1]),
+        ("mock_config_entry", "reconfigure_cloud", CLOUD_INPUT, [1]),
+        ("mock_config_entry_modbus", "reconfigure_cloud", CLOUD_INPUT, [1]),
+        ("mock_config_entry", "remove_modbus", {}, [1]),
+        ("mock_config_entry", "remove_cloud", {}, []),
+    ],
+)
+@pytest.mark.usefixtures("mock_client")
+async def test_reconfigure_room_sensors(
+    hass: HomeAssistant,
+    request: pytest.FixtureRequest,
+    mock_cloud: MagicMock,
+    fixture: str,
+    option: str,
+    user_input: dict[str, Any],
+    expected: list[int],
+) -> None:
+    """Reconfiguring reads the room sensors again from Connect; without Connect there are none."""
+    entry: MockConfigEntry = request.getfixturevalue(fixture)
+    await setup_integration(hass, entry)
+    hass.config_entries.async_update_entry(entry, data={**entry.data, CONF_ROOM_SENSORS: [2]})
+    mock_cloud.get_components.return_value = cloud_components({1: True, 2: False})
+    # The reload after the flow must not read Connect: the stored value is the one of the flow.
+    mock_cloud.get_overview.side_effect = ConnectionFailedError("down")
+    result = await _reconfigure(hass, entry, option)
+
+    result = dict(await hass.config_entries.flow.async_configure(result["flow_id"], user_input))
+
+    assert result["reason"] == "reconfigure_successful"
+    assert entry.data[CONF_ROOM_SENSORS] == expected

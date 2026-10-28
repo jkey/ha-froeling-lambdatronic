@@ -23,6 +23,9 @@ CONF_PARAMETER_INTERVAL: Final = "parameter_interval"
 CONF_CLOUD_INTERVAL: Final = "cloud_interval"
 CONF_CLOUD: Final = "cloud"
 CONF_FACILITY_ID: Final = "facility_id"
+# Sorted numbers of the heating circuits with a room sensor, as reported by Fröling Connect; also the
+# cache for starts without Connect. Missing (entries of 0.2.0b1) means none.
+CONF_ROOM_SENSORS: Final = "room_sensors"
 
 DEFAULT_SCAN_INTERVAL: Final = 30
 MIN_SCAN_INTERVAL: Final = 10
@@ -57,6 +60,19 @@ def connection_type(data: Mapping[str, Any]) -> ConnectionType:
     if modbus and cloud:
         return ConnectionType.HYBRID
     return ConnectionType.MODBUS if modbus else ConnectionType.CLOUD
+
+
+def room_sensor_circuits(room_sensors: Mapping[str, bool | None]) -> list[int]:
+    """Sorted heating circuit numbers whose room sensor Fröling Connect reports ('hc1': True).
+
+    Only a known True counts: without a room sensor Modbus reports a constant 20.0 °C, so an
+    unknown room sensor is treated as missing.
+    """
+    return sorted(
+        int(key.removeprefix("hc"))
+        for key, present in room_sensors.items()
+        if present is True and key.startswith("hc")
+    )
 
 
 # Register 34002 (boiler state) -> translation key.
