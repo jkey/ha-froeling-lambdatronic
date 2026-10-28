@@ -289,20 +289,6 @@
       "pellet_consumption_total": {
         "name": "Pellet consumption"
       },
-      "system_state": {
-        "name": "System state",
-        "state": {
-          "continuous_load": "Continuous load",
-          "domestic_hot_water": "Domestic hot water",
-          "automatic": "Automatic",
-          "firewood": "Firewood",
-          "cleaning": "Cleaning",
-          "off": "Off",
-          "extra_heating": "Extra heating",
-          "chimney_sweep": "Chimney sweep",
-          "cleaning_2": "Cleaning (2)"
-        }
-      },
       "boiler_state": {
         "name": "Boiler state",
         "state": {
@@ -436,9 +422,6 @@
             "name": "Curve"
           }
         }
-      },
-      "temperature": {
-        "name": "Temperature"
       },
       "pump": {
         "name": "Pump"

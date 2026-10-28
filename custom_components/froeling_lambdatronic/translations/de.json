@@ -289,20 +289,6 @@
       "pellet_consumption_total": {
         "name": "Pelletverbrauch gesamt"
       },
-      "system_state": {
-        "name": "Anlagenzustand",
-        "state": {
-          "continuous_load": "Dauerlast",
-          "domestic_hot_water": "Brauchwasser",
-          "automatic": "Automatik",
-          "firewood": "Scheitholzbetrieb",
-          "cleaning": "Reinigen",
-          "off": "Ausgeschaltet",
-          "extra_heating": "Extraheizen",
-          "chimney_sweep": "Kaminkehrer",
-          "cleaning_2": "Reinigen (2)"
-        }
-      },
       "boiler_state": {
         "name": "Kesselzustand",
         "state": {
@@ -436,9 +422,6 @@
             "name": "Kurve"
           }
         }
-      },
-      "temperature": {
-        "name": "Temperatur"
       },
       "pump": {
         "name": "Pumpe"

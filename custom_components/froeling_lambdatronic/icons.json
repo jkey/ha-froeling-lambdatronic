@@ -98,9 +98,6 @@
       "pellet_counter": {
         "default": "mdi:counter"
       },
-      "system_state": {
-        "default": "mdi:state-machine"
-      },
       "boiler_state": {
         "default": "mdi:fire-circle"
       },

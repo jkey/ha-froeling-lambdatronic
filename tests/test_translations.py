@@ -20,7 +20,6 @@ from custom_components.froeling_lambdatronic.const import (
     ISSUE_PROTOCOL_DISABLED,
     ISSUE_REMOTE_CONTROL_DISABLED,
     OPERATING_MODE_KEYS,
-    SYSTEM_STATE_KEYS,
     ConnectionType,
 )
 from custom_components.froeling_lambdatronic.entity import DEVICE_TRANSLATION_KEYS
@@ -55,7 +54,6 @@ def test_german_has_same_keys() -> None:
 @pytest.mark.parametrize(
     ("path", "keys"),
     [
-        ("sensor/system_state/state", SYSTEM_STATE_KEYS.values()),
         ("sensor/boiler_state/state", BOILER_STATE_KEYS.values()),
         ("select/system_operating_mode/state", OPERATING_MODE_KEYS.values()),
         ("climate/heating_circuit/state_attributes/preset_mode/state", PRESETS.values()),

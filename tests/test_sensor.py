@@ -165,6 +165,17 @@ async def test_circulation_return_temperature_cloud(
     assert entry.disabled_by is er.RegistryEntryDisabler.INTEGRATION
 
 
+@pytest.mark.usefixtures("entity_registry_enabled_by_default", "mock_client", "mock_cloud")
+async def test_no_duplicate_sensors(
+    hass: HomeAssistant, entity_registry: er.EntityRegistry, any_config_entry: MockConfigEntry
+) -> None:
+    """Tank temperature and system state have no sensor: water heater and select show them."""
+    await setup_integration(hass, any_config_entry)
+    for key in ("dhw1_temperature", "system_state"):
+        unique_id = f"{any_config_entry.entry_id}_{key}"
+        assert entity_registry.async_get_entity_id("sensor", DOMAIN, unique_id) is None, key
+
+
 async def test_unknown_states(
     hass: HomeAssistant, mock_client: MagicMock, mock_config_entry_modbus: MockConfigEntry
 ) -> None:
@@ -175,7 +186,6 @@ async def test_unknown_states(
     await setup_integration(hass, mock_config_entry_modbus)
 
     for entity_id in (
-        "sensor.froling_pe1_system_state",
         "sensor.froling_pe1_boiler_state",
         "sensor.froling_pe1_heating_circuit_01_flow_by_heating_curve",
         "sensor.froling_pe1_pellet_consumption",

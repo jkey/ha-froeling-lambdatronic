@@ -59,19 +59,6 @@ def connection_type(data: Mapping[str, Any]) -> ConnectionType:
     return ConnectionType.MODBUS if modbus else ConnectionType.CLOUD
 
 
-# Register 34001 (system state) -> translation key.
-SYSTEM_STATE_KEYS: Final[dict[int, str]] = {
-    0: "continuous_load",
-    1: "domestic_hot_water",
-    2: "automatic",
-    3: "firewood",
-    4: "cleaning",
-    5: "off",
-    6: "extra_heating",
-    7: "chimney_sweep",
-    8: "cleaning_2",
-}
-
 # Register 34002 (boiler state) -> translation key.
 BOILER_STATE_KEYS: Final[dict[int, str]] = {
     0: "fault",

@@ -49,7 +49,11 @@ def _v1_entry(*, cloud: bool, selection: dict[str, list[int]] | None = None) -> 
 async def test_migrate_v1(
     hass: HomeAssistant, device_registry: dr.DeviceRegistry, entity_registry: er.EntityRegistry
 ) -> None:
-    """Deselected components become disabled devices; replaced entities go, the control output is renamed."""
+    """Deselected components become disabled devices; replaced entities go, the control output is renamed.
+
+    The tank temperature and system state sensors go as well (shown by the water heater and the
+    system mode select); the other sensors of the tank stay.
+    """
     entry = _v1_entry(
         cloud=True, selection={CONF_HEATING_CIRCUITS: [1], CONF_HOT_WATER: [1], CONF_BUFFERS: []}
     )
@@ -65,6 +69,11 @@ async def test_migrate_v1(
             ("number", "boiler_setpoint"),
             ("sensor", "pellet_counter_kg"),
             ("sensor", "boiler_output"),
+            ("sensor", "dhw1_temperature"),
+            ("sensor", "dhw2_temperature"),
+            ("sensor", "dhw1_pump"),
+            ("sensor", "hc1_flow_temperature"),
+            ("sensor", "system_state"),
         )
     }
 
@@ -89,7 +98,14 @@ async def test_migrate_v1(
 
     for (_, key), entity in old.items():
         current = entity_registry.async_get(entity.entity_id)
-        removed = key in ("hc1_operating_mode", "dhw1_setpoint", "pellet_counter_kg")
+        removed = key in (
+            "hc1_operating_mode",
+            "dhw1_setpoint",
+            "pellet_counter_kg",
+            "dhw1_temperature",
+            "dhw2_temperature",
+            "system_state",
+        )
         assert (current is None) is removed, key
     control = entity_registry.async_get(old[("sensor", "boiler_output")].entity_id)
     assert control is not None

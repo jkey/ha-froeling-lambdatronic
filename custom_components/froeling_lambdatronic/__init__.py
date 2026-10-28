@@ -178,12 +178,15 @@ async def async_migrate_entry(hass: HomeAssistant, entry: FroelingConfigEntry) -
 
 
 _V1_SELECTION = (CONF_HEATING_CIRCUITS, CONF_HOT_WATER, CONF_BUFFERS)
-# Entities of 0.1.0 replaced in 0.2.0: heating circuit mode (now climate), tank setpoint (now
-# water_heater), pellet counter kg part (now the combined pellet counter).
+# Entities of 0.1.0 replaced in 0.2.0: heating circuit mode (now climate), tank setpoint and
+# temperature (now water_heater), pellet counter kg part (now the combined pellet counter), system
+# state (now the system operating mode select).
 _V1_REMOVED = (
     (Platform.SELECT, re.compile(r"hc\d+_operating_mode")),
     (Platform.NUMBER, re.compile(r"dhw\d+_setpoint")),
     (Platform.SENSOR, re.compile(r"pellet_counter_kg")),
+    (Platform.SENSOR, re.compile(r"dhw\d+_temperature")),
+    (Platform.SENSOR, re.compile(r"system_state")),
 )
 _V1_RENAMED = {"boiler_output": "boiler_control_output"}
 

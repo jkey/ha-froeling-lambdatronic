@@ -31,7 +31,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 from homeassistant.helpers.typing import StateType
 
-from .const import BOILER_STATE_KEYS, SYSTEM_STATE_KEYS
+from .const import BOILER_STATE_KEYS
 from .coordinator import CloudInfo, FroelingConfigEntry
 from .entity import BOILER_COMPONENT, CIRCULATION_COMPONENT, Component, ComponentKind, FroelingEntity
 from .sources import FroelingSources, Source
@@ -137,13 +137,7 @@ BOILER_SENSORS: tuple[FroelingSensorDescription, ...] = (
         native_unit_of_measurement=UnitOfMass.KILOGRAMS,
         state_class=SensorStateClass.TOTAL_INCREASING,
     ),
-    FroelingSensorDescription(
-        key="system_state",
-        translation_key="system_state",
-        device_class=SensorDeviceClass.ENUM,
-        options=list(SYSTEM_STATE_KEYS.values()),
-        convert=_state_key(SYSTEM_STATE_KEYS),
-    ),
+    # No system state sensor: the system operating mode select shows it.
     FroelingSensorDescription(
         key="boiler_state",
         translation_key="boiler_state",
@@ -204,8 +198,8 @@ HEATING_CIRCUIT_SENSORS: tuple[FroelingSensorDescription, ...] = (
     _temperature("room_temperature", enabled=False),
 )
 
+# No tank temperature sensor: the water heater shows it as its current temperature.
 HOT_WATER_SENSORS: tuple[FroelingSensorDescription, ...] = (
-    _temperature("temperature"),
     FroelingSensorDescription(
         key="pump",
         translation_key="pump",

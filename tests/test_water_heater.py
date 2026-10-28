@@ -1,5 +1,7 @@
 """Tests for the water heaters of the hot water tanks."""
 
+from dataclasses import replace
+from datetime import timedelta
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -21,11 +23,16 @@ from homeassistant.const import (
 )
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import entity_registry as er
-from pytest_homeassistant_custom_component.common import MockConfigEntry, snapshot_platform
+from homeassistant.util import dt as dt_util
+from pytest_homeassistant_custom_component.common import (
+    MockConfigEntry,
+    async_fire_time_changed,
+    snapshot_platform,
+)
 from syrupy.assertion import SnapshotAssertion
 
 from . import setup_integration
-from .const import FACILITY_ID
+from .const import FACILITY_ID, VALUES
 
 DHW1 = "water_heater.froling_pe1_brauchwasser"
 DHW1_MODBUS = "water_heater.froling_pe1_dhw_tank_01"
@@ -105,6 +112,23 @@ async def test_modbus_without_operation_mode(
     assert state.attributes[ATTR_SUPPORTED_FEATURES] == WaterHeaterEntityFeature.TARGET_TEMPERATURE
     assert state.attributes["current_temperature"] == 51.0
     assert state.attributes[ATTR_TEMPERATURE] == 55.0
+
+
+async def test_current_temperature_follows_values(
+    hass: HomeAssistant, mock_client: MagicMock, mock_config_entry_modbus: MockConfigEntry
+) -> None:
+    """The tank temperature (no sensor of its own) follows the Modbus values, not just the setpoint."""
+    await setup_integration(hass, mock_config_entry_modbus)
+
+    mock_client.read_values.return_value = replace(
+        VALUES, hot_water={1: replace(VALUES.hot_water[1], temperature=47.5)}
+    )
+    async_fire_time_changed(hass, dt_util.utcnow() + timedelta(seconds=31))
+    await hass.async_block_till_done()
+
+    state = hass.states.get(DHW1_MODBUS)
+    assert state is not None
+    assert state.attributes["current_temperature"] == 47.5
 
 
 async def _fail_cloud(hass: HomeAssistant, mock_cloud: MagicMock, entry: MockConfigEntry) -> None:
