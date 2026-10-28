@@ -58,10 +58,12 @@ rules:
   docs-troubleshooting: done
   docs-use-cases: done
   dynamic-devices:
-    status: done
+    status: exempt
     comment: >-
-      The equipment is built into the boiler and changes only with an installation; reconfiguring
-      detects it again, new components get a device and removed ones lose it.
+      The equipment is fixed by the installation of the boiler; components are not added at
+      runtime, so the integration does not watch for new devices while running. A reconfigure
+      reloads the entry and detects the equipment again: new components get a device, the devices
+      of removed ones are deleted.
   entity-category: done
   entity-device-class: done
   entity-disabled-by-default: done
