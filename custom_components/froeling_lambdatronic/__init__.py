@@ -210,7 +210,7 @@ def _async_migrate_v1_devices(hass: HomeAssistant, entry: FroelingConfigEntry) -
     )
     for component in components(deselected):
         if component.kind is not ComponentKind.BOILER:
-            registry.async_get_or_create_child(
+            child = registry.async_get_or_create_child(
                 config_entry_id=entry.entry_id,
                 identifiers={(DOMAIN, component.identifier(entry.entry_id))},
                 parent_device_id=boiler.id,
@@ -218,6 +218,10 @@ def _async_migrate_v1_devices(hass: HomeAssistant, entry: FroelingConfigEntry) -
                 translation_key=DEVICE_TRANSLATION_KEYS[component.kind],
                 translation_placeholders={"number": f"{component.number:02d}"},
             )
+            # 0.1.0 deleted deselected devices; HA restores a deleted device with its stored
+            # disabled_by (None) and ignores the one passed above.
+            if child.disabled_by is None:
+                registry.async_update_child_device(child.id, disabled_by=dr.DeviceEntryDisabler.USER)
 
 
 @callback

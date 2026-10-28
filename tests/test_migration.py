@@ -120,3 +120,37 @@ async def test_migrate_from_future_version(hass: HomeAssistant, mock_client: Mag
     await hass.async_block_till_done()
 
     assert entry.state is ConfigEntryState.MIGRATION_ERROR
+
+
+@pytest.mark.usefixtures("mock_client", "mock_cloud")
+async def test_migrate_v1_restores_deleted_device_disabled(
+    hass: HomeAssistant, device_registry: dr.DeviceRegistry, entity_registry: er.EntityRegistry
+) -> None:
+    """A device deleted by deselecting it in 0.1.0 comes back disabled by the user, with its old entity."""
+    entry = _v1_entry(cloud=True, selection={CONF_HEATING_CIRCUITS: [1]})
+    entry.add_to_hass(hass)
+    boiler = device_registry.async_get_or_create(
+        config_entry_id=ENTRY_ID, identifiers={(DOMAIN, ENTRY_ID)}, name="Fröling PE1"
+    )
+    hc2 = device_registry.async_get_or_create_child(
+        config_entry_id=ENTRY_ID, identifiers={(DOMAIN, f"{ENTRY_ID}_hc2")}, parent_device_id=boiler.id
+    )
+    old = entity_registry.async_get_or_create(
+        "sensor",
+        DOMAIN,
+        f"{ENTRY_ID}_hc2_flow_temperature",
+        config_entry=entry,
+        device_id=hc2.id,
+        suggested_object_id="old_hc2_flow",
+    )
+    # 0.1.0 deleted the device of a deselected component.
+    device_registry.async_remove_device(hc2.id)
+    assert entity_registry.async_get(old.entity_id) is None
+
+    await setup_integration(hass, entry)
+
+    device = device_registry.async_get_child_device_by_identifier((DOMAIN, f"{ENTRY_ID}_hc2"), ENTRY_ID)
+    assert device is not None
+    assert device.disabled_by is dr.DeviceEntryDisabler.USER
+    restored = entity_registry.async_get_entity_id("sensor", DOMAIN, f"{ENTRY_ID}_hc2_flow_temperature")
+    assert restored == old.entity_id
