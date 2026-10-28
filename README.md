@@ -118,10 +118,15 @@ Hybrid-Betrieb läuft Modbus so lange weiter.
 ### Aktualisierung von 0.1.0
 
 Bestehende Einträge werden beim ersten Start übernommen (Modbus bzw. Modbus und Connect). In den
-Optionen abgewählte Komponenten erscheinen als deaktivierte Geräte. Entfallen: das `select`
-„Betriebsart“ der Heizkreise (jetzt `climate`), das `number` „Solltemperatur“ der Boiler (jetzt
-`water_heater`) und der „Pellet-kg-Zähler“ (jetzt „Pelletverbrauch-Zähler“ in kg). Aus
-„Kesselleistung“ wird „Kesselstellgröße“ mit derselben Entity-ID.
+Optionen abgewählte Komponenten erscheinen als deaktivierte Geräte. Aus „Kesselleistung“ wird
+„Kesselstellgröße“ mit derselben Entity-ID. Diese Entitäten entfallen; Automationen, Skripte und
+Dashboards, die sie nutzen, bitte anpassen:
+
+| Entfällt | Ersatz |
+|---|---|
+| `sensor.*_pellet_counter_kg` (Pellet-kg-Zähler) | „Pelletverbrauch-Zähler“ (kg); die Statistik des alten Sensors bleibt verwaist zurück |
+| `select.*_hc{n}_operating_mode` (Betriebsart der Heizkreise) | HVAC-Modus und Presets der `climate`-Entität des Heizkreises |
+| `number.*_dhw{n}_setpoint` (Solltemperatur der Boiler) | `water_heater`-Entität des Boilers |
 
 ## Geräte und Entitäten
 
@@ -237,7 +242,9 @@ gehen von „Fröling PE1 Pellet 20“, einem Heizkreis „Wohnbereich“ und De
 - **Ein Client pro Gateway:** Fragen zwei Programme gleichzeitig, vertauscht das Gateway Antworten.
 - Das **Raumsoll** in `climate` gibt es nur mit Raumfühler und Modbus. Es zeigt bei
   Absenken/Dauerabsenken das Absenk-Soll; in Automatik entscheidet der Zeitplan aus Fröling
-  Connect (in einer Phase Heiz-Soll, sonst Absenk-Soll), ohne Connect gilt das Heiz-Soll.
+  Connect (in einer Phase Heiz-Soll, sonst Absenk-Soll). Ohne Zeitplan aus Connect zeigt und
+  schreibt `climate` in Automatik das Heiz-Soll; das Absenk-Soll ist über das Preset „Absenken“
+  erreichbar.
 - Störungen lassen sich nur anzeigen, nicht quittieren. Mit nur Connect gilt als Störung, was der
   Kesselzustand meldet; Warnungen stehen im Verlauf.
 - Zeitpläne von Puffer und Zirkulationspumpe, Expertenmodus, Statistik und Benachrichtigungen
@@ -339,9 +346,12 @@ without password keeps the stored one) and, with both, removing one of them; the
 detected again. If Fröling Connect rejects the login, Home Assistant asks for new credentials.
 
 Upgrading from 0.1.0: entries are migrated on the first start; components deselected in the
-options become disabled devices. The heating circuit mode select (now `climate`), the DHW
-setpoint number (now `water_heater`) and the pellet kg counter (now the pellet counter in kg)
-are removed; "Boiler output" becomes "Boiler control output" with the same entity ID.
+options become disabled devices; "Boiler output" becomes "Boiler control output" with the same
+entity ID. These entities are removed, so adapt automations, scripts and dashboards using them:
+`sensor.*_pellet_counter_kg` (replaced by the pellet counter in kg; the old statistics remain
+orphaned), `select.*_hc{n}_operating_mode` (replaced by the HVAC mode and presets of the heating
+circuit's `climate` entity) and `number.*_dhw{n}_setpoint` (replaced by the DHW tank's
+`water_heater` entity).
 
 ## Entities
 
@@ -384,10 +394,12 @@ weekend, reordering pellets when the store runs low – see the German examples 
 ## Known limitations
 
 Fröling Connect is an unofficial cloud API. The system operating mode and the boiler switch need
-Connect. One Modbus client per gateway. The room setpoint needs a room sensor and Modbus; in automatic the Connect schedule decides
-between heating and setback setpoint.
-Faults can be shown but not acknowledged. Buffer and circulation schedules, expert mode,
-statistics and Modbus remote control (48001 ff.) are not used. Fault texts are German.
+Connect. One Modbus client per gateway. The room setpoint needs a room sensor and Modbus; in
+automatic the Connect schedule decides between heating and setback setpoint. Without a schedule
+from Connect the climate entity shows and writes the heating setpoint in automatic; the setback
+setpoint is reachable via the setback preset. Faults can be shown but not acknowledged. Buffer
+and circulation schedules, expert mode, statistics and Modbus remote control (48001 ff.) are not
+used. Fault texts are German.
 
 ## Troubleshooting
 
