@@ -292,7 +292,8 @@ class FroelingConfigFlow(ConfigFlow, domain=DOMAIN):
             await self.async_set_unique_id(f"cloud:{facility.facility_id}")
         self._cloud[CONF_FACILITY_ID] = facility.facility_id
         self._cloud_equipment = None
-        self._title = f"{TITLE} {facility.product_type}" if facility.product_type else facility.name or TITLE
+        # Names from Fröling Connect are never adopted, only the boiler type.
+        self._title = f"{TITLE} {facility.product_type}" if facility.product_type else TITLE
         return await self._async_finish(errors)
 
     def _facility_in_use(self, facility_id: int) -> bool:

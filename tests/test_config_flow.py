@@ -160,11 +160,11 @@ async def test_multiple_facilities(hass: HomeAssistant, mock_cloud: MagicMock) -
 
 @pytest.mark.usefixtures("mock_cloud")
 async def test_title_without_product_type(hass: HomeAssistant, mock_cloud: MagicMock) -> None:
-    """Without a boiler type the facility name is the title."""
+    """Without a boiler type the title is "Fröling"; the Connect facility name is never adopted."""
     mock_cloud.get_facilities.return_value = [Facility(FACILITY_ID, "Home", None)]
     result = await _start(hass, ConnectionType.CLOUD)
     result = dict(await hass.config_entries.flow.async_configure(result["flow_id"], CLOUD_INPUT))
-    assert result["title"] == "Home"
+    assert result["title"] == "Fröling"
 
 
 @pytest.mark.parametrize(
