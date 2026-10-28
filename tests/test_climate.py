@@ -155,19 +155,24 @@ async def test_write_modbus(
     mock_cloud.set_value.assert_not_awaited()
 
 
+@pytest.mark.parametrize(("pump", "action"), [(True, HVACAction.HEATING), (False, HVACAction.IDLE)])
 async def test_cloud(
-    hass: HomeAssistant, mock_cloud: MagicMock, mock_config_entry_cloud: MockConfigEntry
+    hass: HomeAssistant,
+    mock_cloud: MagicMock,
+    mock_config_entry_cloud: MockConfigEntry,
+    pump: bool,
+    action: HVACAction,
 ) -> None:
-    """Connect only: flow temperature, no target temperature, modes written via the cloud."""
-    mock_cloud.snapshot_changes = {"hc1_pump": False}
+    """Connect only: flow temperature, no target temperature, action from the pump, modes via the cloud."""
+    mock_cloud.snapshot_changes = {"hc1_pump": pump}
     await setup_integration(hass, mock_config_entry_cloud)
 
     state = hass.states.get(HC1)
     assert state is not None
     assert state.attributes[ATTR_CURRENT_TEMPERATURE] == 37.0
-    assert ATTR_TEMPERATURE not in state.attributes or state.attributes[ATTR_TEMPERATURE] is None
+    assert ATTR_TEMPERATURE not in state.attributes
     assert not state.attributes[ATTR_SUPPORTED_FEATURES] & ClimateEntityFeature.TARGET_TEMPERATURE
-    assert state.attributes[ATTR_HVAC_ACTION] == HVACAction.IDLE
+    assert state.attributes[ATTR_HVAC_ACTION] == action
 
     await _call(hass, SERVICE_SET_PRESET_MODE, HC1, **{ATTR_PRESET_MODE: "setback"})
 
