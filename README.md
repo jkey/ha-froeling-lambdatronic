@@ -127,6 +127,8 @@ Dashboards, die sie nutzen, bitte anpassen:
 | `sensor.*_pellet_counter_kg` (Pellet-kg-Zähler) | „Pelletverbrauch-Zähler“ (kg); die Statistik des alten Sensors bleibt verwaist zurück |
 | `select.*_hc{n}_operating_mode` (Betriebsart der Heizkreise) | HVAC-Modus und Presets der `climate`-Entität des Heizkreises |
 | `number.*_dhw{n}_setpoint` (Solltemperatur der Boiler) | `water_heater`-Entität des Boilers |
+| `sensor.*_dhw{n}_temperature` (Temperatur der Boiler) | aktuelle Temperatur (`current_temperature`) der `water_heater`-Entität des Boilers; die Statistik des alten Sensors bleibt verwaist zurück |
+| `sensor.*_system_state` (Anlagenzustand) | Auswahl „Anlagen-Betriebsart“; sie zeigt nur die drei wählbaren Betriebsarten (Automatik/Brauchwasser/Dauerlast), andere Zustände erscheinen als unbekannt; der Verlauf des alten Sensors bleibt verwaist zurück |
 
 ## Geräte und Entitäten
 
@@ -138,7 +140,7 @@ Softwarestände.
 
 | Gerät | Entitäten |
 |---|---|
-| Kessel | Kesseltemperatur, Kessel-Soll errechnet, Abgastemperatur, Restsauerstoff, Saugzugdrehzahl, Saugzug-Ansteuerung, Einschub, Kesselstellgröße, Außentemperatur, Füllstand Pelletbehälter, Pelletverbrauch gesamt und Pelletverbrauch-Zähler (kg), Anlagenzustand, Kesselzustand, Störung (Text; Attribute `error_code`, `more_errors`, mit Connect `since` und `history`), Rücklauftemperatur (deaktiviert) |
+| Kessel | Kesseltemperatur, Kessel-Soll errechnet, Abgastemperatur, Restsauerstoff, Saugzugdrehzahl, Saugzug-Ansteuerung, Einschub, Kesselstellgröße, Außentemperatur, Füllstand Pelletbehälter, Pelletverbrauch gesamt und Pelletverbrauch-Zähler (kg), Kesselzustand, Störung (Text; Attribute `error_code`, `more_errors`, mit Connect `since` und `history`), Rücklauftemperatur (deaktiviert) |
 | Kessel (binär) | Störung aktiv, Kesselanforderung, Fröling Connect (Verbindung, Diagnose) |
 | Kessel (Diagnose) | Betriebsstunden, Stunden im Heizen, Brennerstarts, Heizstunden bis Asche entleeren, Stunden seit Wartung, Stunden in Teillast, Verbunden seit und Letztes Signal (beide deaktiviert), Taste „Parameter neu lesen“ |
 | Kessel (Einstellungen) | Kessel-Solltemperatur, Pelletlager Restbestand und Mindestbestand (t), Anlagen-Betriebsart (Automatik/Brauchwasser/Dauerlast), Schalter „Kessel“ und „Automatische Austragung“, Uhrzeiten 1. und 2. Pelletbefüllung, Tasten „Asche-Zähler zurücksetzen“ und „Pellet-Teilzähler zurücksetzen“ |
@@ -350,8 +352,12 @@ options become disabled devices; "Boiler output" becomes "Boiler control output"
 entity ID. These entities are removed, so adapt automations, scripts and dashboards using them:
 `sensor.*_pellet_counter_kg` (replaced by the pellet counter in kg; the old statistics remain
 orphaned), `select.*_hc{n}_operating_mode` (replaced by the HVAC mode and presets of the heating
-circuit's `climate` entity) and `number.*_dhw{n}_setpoint` (replaced by the DHW tank's
-`water_heater` entity).
+circuit's `climate` entity), `number.*_dhw{n}_setpoint` (replaced by the DHW tank's
+`water_heater` entity), `sensor.*_dhw{n}_temperature` (DHW tank temperature, replaced
+by the current temperature of the tank's `water_heater` entity; the old statistics remain
+orphaned) and `sensor.*_system_state` (replaced by the "System operating mode" select, which shows
+only the three selectable modes automatic/domestic hot water/continuous load, other states show
+as unknown; the old history remains orphaned).
 
 ## Entities
 
