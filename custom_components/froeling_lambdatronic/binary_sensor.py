@@ -1,6 +1,6 @@
 """Binary sensors of the Fröling Lambdatronic integration."""
 
-from froeling_lambdatronic.texts import FAULT_BOILER_STATES
+from froeling_lambdatronic import FAULT_BOILER_STATES
 from homeassistant.components.binary_sensor import (
     BinarySensorDeviceClass,
     BinarySensorEntity,

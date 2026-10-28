@@ -6,13 +6,13 @@ from datetime import datetime, time
 from typing import Any
 
 from froeling_lambdatronic import (
+    FAULT_BOILER_STATES,
     CloudError,
     FlatValue,
     HeatingCircuitParameters,
     boiler_state_text,
     error_text,
 )
-from froeling_lambdatronic.texts import FAULT_BOILER_STATES
 from homeassistant.components.sensor import (
     SensorDeviceClass,
     SensorEntity,
