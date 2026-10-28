@@ -8,6 +8,8 @@ from typing import Any
 
 from froeling_lambdatronic import (
     AuthenticationError,
+    CloudComponentDetail,
+    CloudParameterNotFoundError,
     FlatValue,
     FroelingConnectClient,
     FroelingError,
@@ -250,11 +252,19 @@ class FroelingSources:
         async with self._cloud_errors(value):
             await self._cloud_client.set_value(self._facility_id, key, value)
 
-    async def async_get_schedule(self, component_key: str) -> Mapping[Weekday, tuple[Phase, ...]]:
-        """Weekly schedule of a component ('hc1', 'dhw1'), read from Fröling Connect."""
+    async def async_get_schedule(self, component_key: str) -> CloudComponentDetail:
+        """Detail of a component ('hc1', 'dhw1') read from Fröling Connect.
+
+        It carries the weekly schedule (`schedule`) and the days whose phases could not be read
+        (`skipped_phase_days`).
+        """
         client, facility_id = self._schedule_client()
         async with self._cloud_errors(None, failed_key="cloud_update_failed"):
-            return await client.get_schedule(facility_id, component_key)
+            components = await client.get_components(facility_id)
+            component = next((c for c in components if c.key == component_key), None)
+            if component is None:
+                raise _no_schedule(component_key)
+            return await client.get_component_detail(facility_id, component.component_id)
 
     async def async_set_schedule(
         self, component_key: str, changes: Mapping[Weekday, Sequence[Phase]]
@@ -262,7 +272,10 @@ class FroelingSources:
         """Replace the phases of the given days and read the cloud again."""
         client, facility_id = self._schedule_client()
         async with self._cloud_errors(None):
-            await client.set_schedule(facility_id, component_key, changes)
+            try:
+                await client.set_schedule(facility_id, component_key, changes)
+            except CloudParameterNotFoundError as err:
+                raise _no_schedule(component_key) from err
         await self.coordinator(Source.CLOUD).async_request_refresh()
 
     def _schedule_client(self) -> tuple[FroelingConnectClient, int]:
@@ -311,6 +324,14 @@ def _out_of_range(value: WriteValue | None, err: ValueOutOfRangeError) -> Servic
             "minimum": str(err.minimum),
             "maximum": str(err.maximum),
         },
+    )
+
+
+def _no_schedule(component_key: str) -> ServiceValidationError:
+    return ServiceValidationError(
+        translation_domain=DOMAIN,
+        translation_key="no_schedule",
+        translation_placeholders={"component": component_key},
     )
 
 

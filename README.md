@@ -147,11 +147,16 @@ Softwarestände.
 
 **`froeling_lambdatronic.get_schedule`** liest die Einschaltphasen eines Heizkreises (`climate`)
 oder Boilers (`water_heater`) und liefert sie als Antwort, z. B.
-`{"monday": [{"from": "04:30", "to": "22:00"}], …}`.
+`{"monday": [{"from": "04:30", "to": "22:00"}], …, "unreadable_days": []}`. Tage, deren Phasen
+Fröling Connect nicht lesbar liefert, fehlen in der Antwort und stehen in `unreadable_days`
+(z. B. `["tuesday"]`); wer den Zeitplan liest, ändert und zurückschreibt, muss sie mitgeben.
 
 **`froeling_lambdatronic.set_schedule`** schreibt die Phasen einzelner Tage (`monday` …
-`sunday`). Je Tag bis zu vier Phasen `{from, to}`; `to` darf `24:00` sein (nur in YAML). Nicht
-angegebene Tage bleiben, eine leere Liste leert den Tag. Beide Aktionen brauchen Fröling Connect.
+`sunday`), mindestens eines Tages. Je Tag bis zu vier Phasen `{from, to}`; `to` darf `24:00`
+sein (nur in YAML). Nicht angegebene Tage bleiben, eine leere Liste leert den Tag. Da Fröling
+Connect immer die ganze Woche schreibt, verweigert die Aktion das Schreiben, solange ein nicht
+angegebener Tag unlesbare Phasen hat (er würde sonst gelöscht); die Fehlermeldung nennt die
+Tage. Beide Aktionen brauchen Fröling Connect.
 
 ```yaml
 # Am Wochenende länger heizen
@@ -354,10 +359,15 @@ since maintenance, hours in partial load, connected since and last signal.
 ## Actions
 
 `froeling_lambdatronic.get_schedule` returns the weekly switch-on phases of a heating circuit
-(`climate`) or DHW tank (`water_heater`), e.g. `{"monday": [{"from": "04:30", "to": "22:00"}]}`.
+(`climate`) or DHW tank (`water_heater`), e.g.
+`{"monday": [{"from": "04:30", "to": "22:00"}], …, "unreadable_days": []}`. Days whose phases
+Fröling Connect returns unreadable are missing in the response and listed in `unreadable_days`
+(e.g. `["tuesday"]`); a read-edit-write cycle must give them again.
 `froeling_lambdatronic.set_schedule` replaces the phases of the given days (`monday` …
-`sunday`, up to four `{from, to}` per day, `to` may be `24:00` in YAML); days not given stay, an
-empty list clears a day. Both need Fröling Connect; see the German example above.
+`sunday`, at least one day, up to four `{from, to}` per day, `to` may be `24:00` in YAML); days
+not given stay, an empty list clears a day. Fröling Connect always writes the whole week, so the
+action refuses to write while a day not given has unreadable phases (it would be erased); the
+error names those days. Both need Fröling Connect; see the German example above.
 
 ## Data updates
 

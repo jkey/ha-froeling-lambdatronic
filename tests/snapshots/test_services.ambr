@@ -38,6 +38,8 @@
           'to': '22:00',
         }),
       ]),
+      'unreadable_days': list([
+      ]),
       'wednesday': list([
         dict({
           'from': '04:00',
@@ -85,6 +87,8 @@
           'from': '04:30',
           'to': '22:00',
         }),
+      ]),
+      'unreadable_days': list([
       ]),
       'wednesday': list([
         dict({

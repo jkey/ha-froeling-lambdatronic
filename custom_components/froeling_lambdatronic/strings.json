@@ -559,6 +559,15 @@
     },
     "invalid_schedule": {
       "message": "Invalid schedule for {day}: {error}"
+    },
+    "schedule_no_days": {
+      "message": "Give at least one day to write."
+    },
+    "schedule_unreadable_days": {
+      "message": "The phases of {days} could not be read from Fröling Connect. Give these days as well, otherwise writing the schedule would erase them."
+    },
+    "no_schedule": {
+      "message": "Fröling Connect has no weekly schedule for {component}."
     }
   },
   "issues": {
@@ -574,11 +583,11 @@
   "services": {
     "get_schedule": {
       "name": "Get schedule",
-      "description": "Reads the weekly switch-on phases of heating circuits or hot water tanks from Fröling Connect."
+      "description": "Reads the weekly switch-on phases of heating circuits or hot water tanks from Fröling Connect. Days whose phases could not be read are listed in 'unreadable_days'; give them again when writing the schedule."
     },
     "set_schedule": {
       "name": "Set schedule",
-      "description": "Writes the weekly switch-on phases of heating circuits or hot water tanks via Fröling Connect. Days not given stay unchanged.",
+      "description": "Writes the weekly switch-on phases of heating circuits or hot water tanks via Fröling Connect. Days not given stay unchanged; days whose phases could not be read must be given.",
       "fields": {
         "monday": {
           "name": "Monday",

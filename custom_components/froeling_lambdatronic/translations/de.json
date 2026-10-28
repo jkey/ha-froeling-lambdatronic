@@ -559,6 +559,15 @@
     },
     "invalid_schedule": {
       "message": "Ungültiger Zeitplan für {day}: {error}"
+    },
+    "schedule_no_days": {
+      "message": "Mindestens einen Tag zum Schreiben angeben."
+    },
+    "schedule_unreadable_days": {
+      "message": "Die Phasen von {days} ließen sich nicht aus Fröling Connect lesen. Diese Tage ebenfalls angeben, sonst würde das Schreiben des Zeitplans sie löschen."
+    },
+    "no_schedule": {
+      "message": "Fröling Connect hat für {component} keinen Wochenzeitplan."
     }
   },
   "issues": {
@@ -574,11 +583,11 @@
   "services": {
     "get_schedule": {
       "name": "Zeitplan lesen",
-      "description": "Liest die wöchentlichen Einschaltphasen von Heizkreisen oder Boilern aus Fröling Connect."
+      "description": "Liest die wöchentlichen Einschaltphasen von Heizkreisen oder Boilern aus Fröling Connect. Tage, deren Phasen sich nicht lesen ließen, stehen in „unreadable_days“; sie beim Schreiben des Zeitplans erneut angeben."
     },
     "set_schedule": {
       "name": "Zeitplan schreiben",
-      "description": "Schreibt die wöchentlichen Einschaltphasen von Heizkreisen oder Boilern über Fröling Connect. Nicht angegebene Tage bleiben unverändert.",
+      "description": "Schreibt die wöchentlichen Einschaltphasen von Heizkreisen oder Boilern über Fröling Connect. Nicht angegebene Tage bleiben unverändert; Tage, deren Phasen sich nicht lesen ließen, müssen angegeben werden.",
       "fields": {
         "monday": {
           "name": "Montag",

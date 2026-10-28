@@ -1,5 +1,6 @@
 """Actions of the Fröling Lambdatronic integration: read and write weekly schedules via Fröling Connect."""
 
+from collections.abc import Collection
 from functools import partial
 from typing import Any
 
@@ -13,7 +14,7 @@ from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers.entity import Entity
 from homeassistant.helpers.entity_platform import async_get_platforms
 from homeassistant.helpers.service import entity_service_call
-from homeassistant.util.json import JsonObjectType
+from homeassistant.util.json import JsonObjectType, JsonValueType
 
 from .const import DOMAIN
 from .entity import FroelingEntity
@@ -22,6 +23,7 @@ SERVICE_GET_SCHEDULE = "get_schedule"
 SERVICE_SET_SCHEDULE = "set_schedule"
 ATTR_FROM = "from"
 ATTR_TO = "to"
+ATTR_UNREADABLE_DAYS = "unreadable_days"
 DAYS = {day.lower(): day for day in Weekday}
 END_OF_DAY = "24:00"
 MINUTES_PER_DAY = 24 * 60
@@ -52,15 +54,27 @@ def _text(minutes: int) -> str:
     return f"{minutes // 60:02d}:{minutes % 60:02d}"
 
 
+def _days(weekdays: Collection[Weekday]) -> list[str]:
+    """Days in week order, spelled as the service fields ('monday')."""
+    return [day for day, weekday in DAYS.items() if weekday in weekdays]
+
+
 async def async_get_schedule(entity: FroelingEntity, call: ServiceCall) -> JsonObjectType:
-    """Weekly schedule of the entity's component, e.g. {'monday': [{'from': '04:30', 'to': '22:00'}]}."""
-    schedule = await entity.sources.async_get_schedule(entity.component.key)
-    return {
+    """Weekly schedule of the entity's component, e.g. {'monday': [{'from': '04:30', 'to': '22:00'}]}.
+
+    `unreadable_days` lists the days whose phases could not be read: they are missing in the
+    response and must be given again when the schedule is written.
+    """
+    detail = await entity.sources.async_get_schedule(entity.component.key)
+    response: JsonObjectType = {
         day: [
-            {ATTR_FROM: _text(phase.start), ATTR_TO: _text(phase.end)} for phase in schedule.get(weekday, ())
+            {ATTR_FROM: _text(phase.start), ATTR_TO: _text(phase.end)}
+            for phase in detail.schedule.get(weekday, ())
         ]
         for day, weekday in DAYS.items()
     }
+    response[ATTR_UNREADABLE_DAYS] = list[JsonValueType](_days(detail.skipped_phase_days))
+    return response
 
 
 async def async_set_schedule(entity: FroelingEntity, call: ServiceCall) -> None:
@@ -79,6 +93,16 @@ async def async_set_schedule(entity: FroelingEntity, call: ServiceCall) -> None:
                 translation_placeholders={"day": day, "error": str(err)},
             ) from err
         changes[weekday] = phases
+    if not changes:
+        raise ServiceValidationError(translation_domain=DOMAIN, translation_key="schedule_no_days")
+    # Writing sends the whole week: a kept day whose phases could not be read would be erased.
+    detail = await entity.sources.async_get_schedule(entity.component.key)
+    if missing := _days(detail.skipped_phase_days - changes.keys()):
+        raise ServiceValidationError(
+            translation_domain=DOMAIN,
+            translation_key="schedule_unreadable_days",
+            translation_placeholders={"days": ", ".join(missing)},
+        )
     await entity.sources.async_set_schedule(entity.component.key, changes)
 
 
