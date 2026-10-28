@@ -120,7 +120,6 @@ def mock_cloud() -> Generator[MagicMock]:
     cloud.set_value = AsyncMock()
     cloud.get_schedule = AsyncMock(side_effect=lambda facility_id, key: CLOUD_SCHEDULES[key])
     cloud.set_schedule = AsyncMock()
-    cloud.set_operating_mode = AsyncMock()
     # Tests change cloud values with `mock_cloud.snapshot_changes` (None removes a key).
     cloud.snapshot_changes = {}
 

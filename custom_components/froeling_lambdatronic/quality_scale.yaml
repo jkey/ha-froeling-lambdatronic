@@ -1,17 +1,17 @@
 rules:
   # Bronze
   action-setup:
-    status: exempt
-    comment: The integration registers no actions; everything works through standard entities.
-  appropriate-polling: done
+    status: done
+    comment: get_schedule and set_schedule are registered in async_setup for climate and water_heater entities.
+  appropriate-polling:
+    status: done
+    comment: Modbus 30 s values / 5 min settings, Fröling Connect 2 min (rate limited cloud), system information hourly.
   brands: done
   common-modules: done
   config-flow-test-coverage: done
   config-flow: done
   dependency-transparency: done
-  docs-actions:
-    status: exempt
-    comment: The integration registers no actions.
+  docs-actions: done
   docs-high-level-description: done
   docs-installation-instructions: done
   docs-removal-instructions: done
@@ -42,10 +42,14 @@ rules:
   diagnostics: done
   discovery-update-info:
     status: exempt
-    comment: Modbus TCP gateways offer no discovery protocol (no mDNS, SSDP or DHCP signature).
+    comment: >-
+      Modbus TCP gateways offer no discovery protocol (no mDNS, SSDP or DHCP signature);
+      Fröling Connect is an account, not a device on the network.
   discovery:
     status: exempt
-    comment: Modbus TCP gateways offer no discovery protocol (no mDNS, SSDP or DHCP signature).
+    comment: >-
+      Modbus TCP gateways offer no discovery protocol (no mDNS, SSDP or DHCP signature);
+      Fröling Connect is an account, not a device on the network.
   docs-data-update: done
   docs-examples: done
   docs-known-limitations: done
@@ -54,8 +58,10 @@ rules:
   docs-troubleshooting: done
   docs-use-cases: done
   dynamic-devices:
-    status: exempt
-    comment: The equipment is built in; it is detected during setup and chosen in the options.
+    status: done
+    comment: >-
+      The equipment is built into the boiler and changes only with an installation; reconfiguring
+      detects it again, new components get a device and removed ones lose it.
   entity-category: done
   entity-device-class: done
   entity-disabled-by-default: done
