@@ -280,6 +280,12 @@ Diagnosedaten (Gerät → Diagnose herunterladen) enthalten Verbindungsart, Quel
 Rohregister, Connect-Werte und Systeminformationen. Zugangsdaten, Anlagen-ID und Herstellnummer
 sind geschwärzt; Adresse, Name und Kopplungscode aus Connect werden gar nicht übernommen.
 
+## Änderungen
+
+### 0.2.0 (2026-10-29)
+
+Neu: Verbindung per Modbus, per Fröling Connect oder beides; `climate` je Heizkreis, `water_heater` je Boiler, Schalter, Uhrzeiten, Aktionen `get_schedule`/`set_schedule`; Einrichtung über ein Menü; Gerätenamen aus Connect. Beim Update von 0.1.0 wird der Eintrag automatisch migriert (siehe „Aktualisierung von 0.1.0“). Ersetzt: Heizkreis-Betriebsart (`select`) durch `climate`, Boiler-Soll (`number`) durch `water_heater`, Pellet-Zähler in kg durch einen kombinierten Zähler. Korrigiert seit 0.2.0b1: Raumfühler werden über Fröling Connect erkannt (ohne Raumfühler zeigt `climate` die Vorlauftemperatur und kein Soll); kurze Connect-Ausfälle machen Entitäten nicht mehr sofort „Nicht verfügbar“; keine Phantom-Entitäten, wenn Connect beim Start fehlt; Diagnose ohne Komponentennamen; doppelte Sensoren für Boilertemperatur und Anlagenzustand entfallen.
+
 ## Entfernen
 
 Einstellungen → Geräte & Dienste → Fröling Lambdatronic → Menü → **Löschen**. Danach in HACS
@@ -566,6 +572,12 @@ assume "Fröling PE1 Pellet 20", a heating circuit "Wohnbereich" and German.
 Diagnostics (device → Download diagnostics) contain the connection type, the source of each
 value, raw registers, Connect values and system information. Credentials, facility ID and serial
 number are redacted; address, name and pairing code from Connect are not taken over at all.
+
+## Changes
+
+### 0.2.0 (2026-10-29)
+
+New: connect via Modbus, via Fröling Connect or both; a `climate` entity per heating circuit, a `water_heater` entity per DHW tank, switches, times, the actions `get_schedule`/`set_schedule`; menu-based setup; device names from Connect. Entries are migrated automatically when updating from 0.1.0 (see "Upgrading from 0.1.0"). Replaced: the heating circuit mode `select` by `climate`, the DHW setpoint `number` by `water_heater`, the pellet counter in kg by one combined counter. Fixed since 0.2.0b1: room sensors are detected via Fröling Connect (without one, `climate` shows the flow temperature and offers no setpoint); short Connect outages no longer make entities unavailable at once; no phantom entities when Connect is missing at startup; diagnostics without component names; the duplicate DHW temperature and system state sensors are gone.
 
 ## Removal
 

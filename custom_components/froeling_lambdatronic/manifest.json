@@ -10,6 +10,6 @@
   "issue_tracker": "https://github.com/jkey/ha-froeling-lambdatronic/issues",
   "loggers": ["froeling_lambdatronic"],
   "quality_scale": "platinum",
-  "requirements": ["froeling-lambdatronic==0.2.0b2"],
-  "version": "0.2.0b2"
+  "requirements": ["froeling-lambdatronic==0.2.0"],
+  "version": "0.2.0"
 }
