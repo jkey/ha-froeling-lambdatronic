@@ -537,6 +537,9 @@
     "not_writable": {
       "message": "{key} lässt sich mit dieser Verbindung nicht schreiben."
     },
+    "entity_unavailable": {
+      "message": "{entities} ist zurzeit nicht verfügbar."
+    },
     "schedule_requires_connect": {
       "message": "Zeitpläne lassen sich nur mit Fröling Connect lesen und schreiben."
     },

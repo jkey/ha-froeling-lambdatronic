@@ -16,7 +16,7 @@ from froeling_lambdatronic import (
     Weekday,
     WriteRejectedError,
 )
-from homeassistant.const import ATTR_ENTITY_ID
+from homeassistant.const import ATTR_ENTITY_ID, STATE_UNAVAILABLE
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import HomeAssistantError, ServiceValidationError
 from pytest_homeassistant_custom_component.common import MockConfigEntry
@@ -26,7 +26,7 @@ from custom_components.froeling_lambdatronic.const import DOMAIN
 from custom_components.froeling_lambdatronic.services import _end_minutes
 
 from . import setup_integration
-from .const import CLOUD_DETAILS_BY_ID, FACILITY_ID
+from .const import CLOUD_DETAILS_BY_ID, CLOUD_STATE, FACILITY_ID
 
 HC1 = "climate.froling_pe1_wohnbereich"
 DHW1 = "water_heater.froling_pe1_brauchwasser"
@@ -278,3 +278,33 @@ async def test_incomplete_weekly_schedule(
         assert raised.value.translation_key == "no_schedule"
         assert raised.value.translation_placeholders == {"component": "hc1"}
     mock_cloud.set_schedule.assert_not_awaited()
+
+
+async def test_unavailable_entity(
+    hass: HomeAssistant, mock_cloud: MagicMock, mock_config_entry_cloud: MockConfigEntry
+) -> None:
+    """An unavailable heating circuit (remote control off) is reported instead of being skipped silently."""
+    mock_cloud.get_boiler_state.return_value = replace(CLOUD_STATE, remote_control_allowed=False)
+    await setup_integration(hass, mock_config_entry_cloud)
+    state = hass.states.get(HC1)
+    assert state is not None
+    assert state.state == STATE_UNAVAILABLE
+
+    for action in (_get(hass, HC1), _set(hass, HC1, monday=[])):
+        with pytest.raises(ServiceValidationError) as raised:
+            await action
+        assert raised.value.translation_key == "entity_unavailable"
+        assert raised.value.translation_placeholders == {"entities": HC1}
+    mock_cloud.set_schedule.assert_not_awaited()
+
+
+@pytest.mark.usefixtures("mock_client")
+async def test_all_entities_skip_unavailable(
+    hass: HomeAssistant, mock_cloud: MagicMock, mock_config_entry: MockConfigEntry
+) -> None:
+    """'all' targets the available entities only, as Home Assistant does."""
+    await setup_integration(hass, mock_config_entry)
+
+    response = await _get(hass, "all")
+
+    assert set(response) == {HC1, "climate.froling_pe1_anbau", DHW1}

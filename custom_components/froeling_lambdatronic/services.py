@@ -8,12 +8,22 @@ import probatio
 from froeling_lambdatronic import Phase, Weekday, time_to_minutes, validate_day
 from homeassistant.components.climate import DOMAIN as CLIMATE_DOMAIN
 from homeassistant.components.water_heater import DOMAIN as WATER_HEATER_DOMAIN
-from homeassistant.core import HassJob, HassJobType, HomeAssistant, ServiceCall, SupportsResponse, callback
+from homeassistant.const import ATTR_ENTITY_ID, ENTITY_MATCH_ALL
+from homeassistant.core import (
+    EntityServiceResponse,
+    HassJob,
+    HassJobType,
+    HomeAssistant,
+    ServiceCall,
+    SupportsResponse,
+    callback,
+)
 from homeassistant.exceptions import ServiceValidationError
 from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers.entity import Entity
 from homeassistant.helpers.entity_platform import async_get_platforms
 from homeassistant.helpers.service import entity_service_call
+from homeassistant.helpers.target import TargetSelection, async_extract_referenced_entity_ids
 from homeassistant.util.json import JsonObjectType, JsonValueType
 
 from .const import DOMAIN
@@ -116,6 +126,30 @@ def _schedule_entities(hass: HomeAssistant) -> dict[str, Entity]:
     return entities
 
 
+async def _async_entity_call(
+    hass: HomeAssistant, job: HassJob[..., Any], call: ServiceCall
+) -> EntityServiceResponse | None:
+    """Call the action on the targeted entities; an unavailable one named explicitly is an error.
+
+    Home Assistant skips unavailable entities with a log entry only (or a generic error when a
+    response is asked for), which looks as if a schedule had been written.
+    """
+    entities = _schedule_entities(hass)
+    if call.data.get(ATTR_ENTITY_ID) != ENTITY_MATCH_ALL:
+        referenced = async_extract_referenced_entity_ids(hass, TargetSelection(call.data))
+        if unavailable := sorted(
+            entity_id
+            for entity_id in referenced.referenced
+            if (entity := entities.get(entity_id)) is not None and not entity.available
+        ):
+            raise ServiceValidationError(
+                translation_domain=DOMAIN,
+                translation_key="entity_unavailable",
+                translation_placeholders={"entities": ", ".join(unavailable)},
+            )
+    return await entity_service_call(hass, entities, job, call)
+
+
 @callback
 def async_setup_services(hass: HomeAssistant) -> None:
     """Register the schedule actions for heating circuits and hot water tanks.
@@ -123,11 +157,10 @@ def async_setup_services(hass: HomeAssistant) -> None:
     One action serves two entity domains, which `async_register_platform_entity_service` (one
     domain per service) cannot express; the entities are resolved the same way.
     """
-    entities = partial(_schedule_entities, hass)
     hass.services.async_register(
         DOMAIN,
         SERVICE_GET_SCHEDULE,
-        partial(entity_service_call, hass, entities, HassJob(async_get_schedule)),
+        partial(_async_entity_call, hass, HassJob(async_get_schedule)),
         cv.make_entity_service_schema({}),
         SupportsResponse.ONLY,
         job_type=HassJobType.Coroutinefunction,
@@ -135,7 +168,7 @@ def async_setup_services(hass: HomeAssistant) -> None:
     hass.services.async_register(
         DOMAIN,
         SERVICE_SET_SCHEDULE,
-        partial(entity_service_call, hass, entities, HassJob(async_set_schedule)),
+        partial(_async_entity_call, hass, HassJob(async_set_schedule)),
         SET_SCHEDULE_SCHEMA,
         job_type=HassJobType.Coroutinefunction,
     )
