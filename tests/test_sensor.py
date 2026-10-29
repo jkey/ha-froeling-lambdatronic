@@ -18,10 +18,12 @@ from pytest_homeassistant_custom_component.common import (
 from syrupy.assertion import SnapshotAssertion
 
 from custom_components.froeling_lambdatronic.const import CLOUD_MAX_FAILURES, DOMAIN
+from custom_components.froeling_lambdatronic.entity import Component, ComponentKind
 from custom_components.froeling_lambdatronic.sensor import FroelingCurveSensor, FroelingFaultSensor
+from custom_components.froeling_lambdatronic.sources import Source
 
 from . import setup_integration
-from .const import CLOUD_ERRORS, PARAMETERS, VALUES
+from .const import CLOUD_ERRORS, ENTRY_ID, PARAMETERS, VALUES
 
 FAULT_TEXT = "sensor.froling_pe1_fault_text"
 CIRCULATION_RETURN = "sensor.froling_pe1_circulation_pump_return_temperature"
@@ -226,3 +228,25 @@ async def test_curve_sensor_follows_parameters(
     state = hass.states.get(entity_id)
     assert state is not None
     assert state.state == STATE_UNAVAILABLE
+
+
+def test_curve_sensor_follows_max_flow() -> None:
+    """The maximum flow limits the curve: the sensor also updates with its source (not required)."""
+    keys = {
+        "outside_temperature": Source.MODBUS_VALUES,
+        "hc1_curve_flow_plus10": Source.MODBUS_PARAMETERS,
+        "hc1_curve_flow_minus10": Source.MODBUS_PARAMETERS,
+        "hc1_max_flow": Source.CLOUD,
+    }
+    coordinators = {source: MagicMock(name=str(source)) for source in Source}
+    sources = MagicMock()
+    sources.entry.entry_id = ENTRY_ID
+    sources.source.side_effect = keys.get
+    sources.coordinator.side_effect = coordinators.__getitem__
+
+    sensor = FroelingCurveSensor.create(sources, Component(ComponentKind.HEATING_CIRCUIT, 1))
+
+    assert sensor is not None
+    assert sensor.coordinator is coordinators[Source.MODBUS_VALUES]
+    assert sensor._followed == [coordinators[Source.MODBUS_PARAMETERS], coordinators[Source.CLOUD]]
+    assert sensor._required == [coordinators[Source.MODBUS_PARAMETERS]]

@@ -488,6 +488,9 @@ class FroelingCurveSensor(FroelingEntity, SensorEntity):
             source = sources.source(key)
             assert source is not None
             self.follow(sources.coordinator(source))
+        # The maximum flow limits the curve; without it the curve is not limited.
+        if (max_flow := sources.source(f"{component.key_prefix}max_flow")) is not None:
+            self.follow(sources.coordinator(max_flow), required=False)
 
     def _parameters(self) -> HeatingCircuitParameters:
         """The curve settings of this circuit; the library computes the curve from them."""
