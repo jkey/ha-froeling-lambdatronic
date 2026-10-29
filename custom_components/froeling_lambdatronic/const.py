@@ -39,6 +39,10 @@ DEFAULT_CLOUD_INTERVAL: Final = 2
 MIN_CLOUD_INTERVAL: Final = 1
 MAX_CLOUD_INTERVAL: Final = 60
 CLOUD_INFO_INTERVAL: Final = timedelta(hours=1)
+# Fröling Connect fails now and then: the last values are kept until this many reads in a row failed.
+CLOUD_MAX_FAILURES: Final = 3
+# A failed first Connect read next to Modbus is retried once after this delay.
+CLOUD_FIRST_RETRY: Final = timedelta(seconds=30)
 
 MANUFACTURER: Final = "Fröling"
 MODEL: Final = "Lambdatronic 3200"

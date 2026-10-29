@@ -60,6 +60,7 @@ def _cloud(cloud: CloudCoordinator | None) -> dict[str, Any] | None:
         **_coordinator(cloud),
         "details": cloud.details,
         "skipped": sorted(cloud.skipped),
+        "failures": cloud.failures,
     }
     if (data := cloud.data) is not None:
         result["values"] = {

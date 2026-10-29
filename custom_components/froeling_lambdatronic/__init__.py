@@ -2,21 +2,24 @@
 
 import logging
 import re
-from collections.abc import Mapping
+from collections.abc import Callable, Coroutine, Mapping
+from datetime import datetime
 from typing import Any
 
 from froeling_lambdatronic import Equipment, FroelingConnectClient, FroelingError, LambdatronicClient
 from homeassistant.const import CONF_HOST, CONF_PASSWORD, CONF_PORT, CONF_USERNAME, Platform
-from homeassistant.core import HomeAssistant, callback
+from homeassistant.core import HassJob, HomeAssistant, callback
 from homeassistant.exceptions import ConfigEntryNotReady
 from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers import issue_registry as ir
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
+from homeassistant.helpers.event import async_call_later
 from homeassistant.helpers.typing import ConfigType
 
 from .const import (
+    CLOUD_FIRST_RETRY,
     CONF_BUFFERS,
     CONF_CIRCULATION_PUMP,
     CONF_CLOUD,
@@ -136,8 +139,13 @@ async def async_setup_entry(hass: HomeAssistant, entry: FroelingConfigEntry) -> 
         if modbus is None:
             await cloud.async_config_entry_first_refresh()
         else:
-            # Next to Modbus the cloud is optional: it never blocks or fails the setup.
+            # Next to Modbus the cloud is optional: it never blocks or fails the setup. A failed
+            # first read is retried once soon instead of after the full cloud interval.
             await cloud.async_refresh()
+            if cloud.data is None:
+                entry.async_on_unload(
+                    async_call_later(hass, CLOUD_FIRST_RETRY, HassJob(_async_retry_cloud(cloud)))
+                )
         await cloud_info.async_refresh()
         if CONF_ROOM_SENSORS not in entry.data:
             # Before the platforms: the climate entities read the room sensors from the entry data.
@@ -168,6 +176,13 @@ async def async_setup_entry(hass: HomeAssistant, entry: FroelingConfigEntry) -> 
     _async_update_child_devices(hass, entry, equipment)
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
     return True
+
+
+def _async_retry_cloud(cloud: CloudCoordinator) -> Callable[[datetime], Coroutine[Any, Any, None]]:
+    async def retry(_now: datetime) -> None:
+        await cloud.async_request_refresh()
+
+    return retry
 
 
 async def _async_detect_room_sensors(

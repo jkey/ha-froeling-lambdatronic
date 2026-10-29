@@ -88,6 +88,7 @@
           'timestamp': '2026-10-21T17:40:12.345000+00:00',
         }),
       ]),
+      'failures': 0,
       'last_exception': None,
       'last_update_success': True,
       'room_sensors_snapshot': dict({
@@ -399,6 +400,7 @@
           'timestamp': '2026-10-21T17:40:12.345000+00:00',
         }),
       ]),
+      'failures': 0,
       'last_exception': None,
       'last_update_success': True,
       'room_sensors_snapshot': dict({

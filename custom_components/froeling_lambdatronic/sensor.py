@@ -446,7 +446,11 @@ class FroelingFaultSensor(FroelingEntity, SensorEntity):
     @property
     def _cloud_errors(self) -> tuple[CloudError, ...]:
         cloud = self._cloud
-        return () if cloud is None or cloud.data is None else cloud.data.errors
+        # No stale history while the cloud fails beyond its tolerance.
+        if cloud is None or cloud.data is None or not cloud.last_update_success:
+            return ()
+        errors: tuple[CloudError, ...] = cloud.data.errors
+        return errors
 
 
 def _history(errors: tuple[CloudError, ...]) -> list[CloudError]:

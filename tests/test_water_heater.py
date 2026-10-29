@@ -31,6 +31,8 @@ from pytest_homeassistant_custom_component.common import (
 )
 from syrupy.assertion import SnapshotAssertion
 
+from custom_components.froeling_lambdatronic.const import CLOUD_MAX_FAILURES
+
 from . import setup_integration
 from .const import FACILITY_ID, VALUES
 
@@ -132,11 +134,12 @@ async def test_current_temperature_follows_values(
 
 
 async def _fail_cloud(hass: HomeAssistant, mock_cloud: MagicMock, entry: MockConfigEntry) -> None:
-    """Let the next Fröling Connect update fail."""
+    """Let Fröling Connect fail beyond its tolerance."""
     mock_cloud.get_overview.side_effect = ConnectionFailedError("down")
     cloud = entry.runtime_data.cloud
     assert cloud is not None
-    await cloud.async_refresh()
+    for _ in range(CLOUD_MAX_FAILURES):
+        await cloud.async_refresh()
     await hass.async_block_till_done()
     assert not cloud.last_update_success
 

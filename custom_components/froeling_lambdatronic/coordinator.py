@@ -34,6 +34,7 @@ from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, Upda
 
 from .const import (
     CLOUD_INFO_INTERVAL,
+    CLOUD_MAX_FAILURES,
     CONF_CLOUD_INTERVAL,
     CONF_PARAMETER_INTERVAL,
     CONF_SCAN_INTERVAL,
@@ -202,6 +203,10 @@ class CloudCoordinator(DataUpdateCoordinator[CloudData]):
     With Modbus only the overview is read (one request); without Modbus every component
     detail as well, except those of child devices the user disabled. The details are read here
     instead of with `read_snapshot`, because they also carry the limits of the settings.
+
+    A failed read keeps the last data (one warning per series) until `CLOUD_MAX_FAILURES` reads
+    in a row failed; then the update fails and the cloud entities become unavailable. A rejected
+    login fails at once.
     """
 
     config_entry: FroelingConfigEntry
@@ -227,22 +232,38 @@ class CloudCoordinator(DataUpdateCoordinator[CloudData]):
         self.details = details
         # Component keys ('hc2', 'buffer1', ...) skipped by the last update.
         self.skipped: frozenset[str] = frozenset()
+        # Failed reads in a row.
+        self.failures = 0
 
     async def _async_update_data(self) -> CloudData:
-        skip = self._disabled_components() if self.details else frozenset()
         try:
-            overview = await self.client.get_overview(self.facility_id)
-            details: list[CloudComponentDetail] = []
-            if self.details:
-                for component in await self.client.get_components(self.facility_id):
-                    if component.key is not None and component.key not in skip:
-                        details.append(
-                            await self.client.get_component_detail(self.facility_id, component.component_id)
-                        )
-            state = await self.client.get_boiler_state(self.facility_id)
-            errors = await self.client.get_errors(self.facility_id)
-        except FroelingError as err:
+            return await self._async_read()
+        except AuthenticationError as err:
             raise _cloud_failed(err) from err
+        except FroelingError as err:
+            self.failures += 1
+            if self.data is None or self.failures >= CLOUD_MAX_FAILURES:
+                raise _cloud_failed(err) from err
+            if self.failures == 1:
+                _LOGGER.warning("Fröling Connect failed, keeping the last values: %s", err)
+            if isinstance(err, RateLimitedError) and err.retry_after is not None:
+                # Home Assistant takes the wait time only from UpdateFailed; keep the data instead.
+                self._retry_after = err.retry_after
+            return self.data
+
+    async def _async_read(self) -> CloudData:
+        skip = self._disabled_components() if self.details else frozenset()
+        overview = await self.client.get_overview(self.facility_id)
+        details: list[CloudComponentDetail] = []
+        if self.details:
+            for component in await self.client.get_components(self.facility_id):
+                if component.key is not None and component.key not in skip:
+                    details.append(
+                        await self.client.get_component_detail(self.facility_id, component.component_id)
+                    )
+        state = await self.client.get_boiler_state(self.facility_id)
+        errors = await self.client.get_errors(self.facility_id)
+        self.failures = 0
         self.skipped = skip
         if state.remote_control_allowed:
             ir.async_delete_issue(

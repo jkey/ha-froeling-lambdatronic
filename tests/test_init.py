@@ -379,20 +379,180 @@ async def test_hybrid_cloud_failure_does_not_block_setup(
     assert state.state == "63.0"
 
 
+CLOUD_WARNING = "Fröling Connect failed, keeping the last values"
+CLOUD_ERROR = "Error fetching froeling_lambdatronic cloud data"
+
+
+def _hvac_action(hass: HomeAssistant, entry: MockConfigEntry) -> str | None:
+    """HVAC action of heating circuit 1; found by unique ID, its name depends on the Connect data."""
+    entity_id = er.async_get(hass).async_get_entity_id("climate", DOMAIN, f"{entry.entry_id}_hc1_climate")
+    assert entity_id is not None
+    state = hass.states.get(entity_id)
+    assert state is not None
+    return None if state.state == STATE_UNAVAILABLE else state.attributes.get("hvac_action")
+
+
+def _warnings(caplog: pytest.LogCaptureFixture) -> int:
+    return sum(
+        record.levelname == "WARNING" and CLOUD_WARNING in record.getMessage() for record in caplog.records
+    )
+
+
+@pytest.mark.usefixtures("mock_client")
+@pytest.mark.parametrize("connection", [ConnectionType.HYBRID, ConnectionType.CLOUD])
+async def test_cloud_outage_tolerated(
+    hass: HomeAssistant,
+    mock_cloud: MagicMock,
+    connection: ConnectionType,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Two failed Connect reads in a row keep the last values; the third makes the cloud unavailable."""
+    entry = MockConfigEntry(
+        domain=DOMAIN,
+        version=2,
+        title="Fröling PE1",
+        unique_id=f"cloud:{FACILITY_ID}" if connection is ConnectionType.CLOUD else "192.168.1.50:502:2",
+        data=entry_data(connection),
+    )
+    await setup_integration(hass, entry)
+    cloud = entry.runtime_data.cloud
+    assert cloud is not None
+    action = _hvac_action(hass, entry)
+    assert action is not None
+    mock_cloud.get_overview.side_effect = ConnectionFailedError("down")
+    mock_cloud.snapshot_changes = {"hc1_pump": None}
+
+    for _ in range(2):
+        await cloud.async_refresh()
+        await hass.async_block_till_done()
+        assert cloud.last_update_success is True
+        assert _hvac_action(hass, entry) == action
+    assert _warnings(caplog) == 1
+    assert "Reading Fröling Connect failed" not in caplog.text
+
+    await cloud.async_refresh()
+    await hass.async_block_till_done()
+    assert cloud.last_update_success is False
+    assert _hvac_action(hass, entry) is None
+    assert entry.runtime_data.sources.value("hc1_pump") is None
+    assert _warnings(caplog) == 1
+    assert caplog.text.count(CLOUD_ERROR) == 1
+
+    # Success resets the series: the next failure is tolerated and warned about again.
+    mock_cloud.get_overview.side_effect = None
+    mock_cloud.snapshot_changes = {}
+    await cloud.async_refresh()
+    await hass.async_block_till_done()
+    assert _hvac_action(hass, entry) == action
+    mock_cloud.get_overview.side_effect = ConnectionFailedError("down")
+    await cloud.async_refresh()
+    await hass.async_block_till_done()
+    assert cloud.last_update_success is True
+    assert _hvac_action(hass, entry) == action
+    assert _warnings(caplog) == 2
+
+
+async def test_cloud_auth_failure_not_tolerated(
+    hass: HomeAssistant, mock_client: MagicMock, mock_cloud: MagicMock, mock_config_entry: MockConfigEntry
+) -> None:
+    """A rejected login makes the cloud unavailable at once and starts the reauth flow."""
+    await setup_integration(hass, mock_config_entry)
+    cloud = mock_config_entry.runtime_data.cloud
+    assert cloud is not None
+    mock_cloud.get_overview.side_effect = AuthenticationError("rejected")
+
+    await cloud.async_refresh()
+    await hass.async_block_till_done()
+
+    assert cloud.last_update_success is False
+    assert _hvac_action(hass, mock_config_entry) is None
+    flows = hass.config_entries.flow.async_progress_by_handler(DOMAIN)
+    assert [flow["context"]["source"] for flow in flows] == [SOURCE_REAUTH]
+
+
 async def test_cloud_rate_limit_retry_after(
     hass: HomeAssistant, mock_client: MagicMock, mock_cloud: MagicMock, mock_config_entry: MockConfigEntry
 ) -> None:
-    """HTTP 429 makes the coordinator wait as long as Fröling Connect asks for."""
+    """HTTP 429 makes the coordinator wait as long as Fröling Connect asks for, also while tolerated."""
     await setup_integration(hass, mock_config_entry)
     cloud = mock_config_entry.runtime_data.cloud
     assert cloud is not None
     mock_cloud.get_overview.side_effect = RateLimitedError(600)
-
     await cloud.async_refresh()
+    assert cloud.last_update_success is True
+    reads = mock_cloud.get_overview.await_count
 
+    async_fire_time_changed(hass, dt_util.utcnow() + timedelta(minutes=3))
+    await hass.async_block_till_done()
+    assert mock_cloud.get_overview.await_count == reads
+    async_fire_time_changed(hass, dt_util.utcnow() + timedelta(seconds=601))
+    await hass.async_block_till_done()
+    assert mock_cloud.get_overview.await_count == reads + 1
+
+    # Beyond the tolerance the wait time is passed to Home Assistant as before.
+    await cloud.async_refresh()
     assert cloud.last_update_success is False
     assert isinstance(cloud.last_exception, UpdateFailed)
     assert cloud.last_exception.retry_after == 600
+
+
+async def test_hybrid_first_cloud_read_retried(
+    hass: HomeAssistant, mock_client: MagicMock, mock_cloud: MagicMock, mock_config_entry: MockConfigEntry
+) -> None:
+    """Hybrid: a failed first Connect read is retried once after 30 s, not after the cloud interval."""
+    mock_cloud.get_overview.side_effect = ConnectionFailedError("down")
+    await setup_integration(hass, mock_config_entry)
+    assert _hvac_action(hass, mock_config_entry) is None
+    mock_cloud.get_overview.side_effect = None
+
+    async_fire_time_changed(hass, dt_util.utcnow() + timedelta(seconds=31))
+    await hass.async_block_till_done()
+
+    assert mock_cloud.get_overview.await_count == 2
+    cloud = mock_config_entry.runtime_data.cloud
+    assert cloud is not None
+    assert cloud.last_update_success is True
+    assert _hvac_action(hass, mock_config_entry) is not None
+
+
+async def test_hybrid_first_cloud_read_retried_once(
+    hass: HomeAssistant, mock_client: MagicMock, mock_cloud: MagicMock, mock_config_entry: MockConfigEntry
+) -> None:
+    """A failing retry is not retried early again: the cloud interval applies."""
+    mock_cloud.get_overview.side_effect = ConnectionFailedError("down")
+    await setup_integration(hass, mock_config_entry)
+
+    for seconds in (31, 62, 93):
+        async_fire_time_changed(hass, dt_util.utcnow() + timedelta(seconds=seconds))
+        await hass.async_block_till_done()
+
+    assert mock_cloud.get_overview.await_count == 2
+
+
+async def test_hybrid_first_cloud_retry_cancelled_on_unload(
+    hass: HomeAssistant, mock_client: MagicMock, mock_cloud: MagicMock, mock_config_entry: MockConfigEntry
+) -> None:
+    """Unloading the entry cancels the pending retry of the first Connect read."""
+    mock_cloud.get_overview.side_effect = ConnectionFailedError("down")
+    await setup_integration(hass, mock_config_entry)
+    await hass.config_entries.async_unload(mock_config_entry.entry_id)
+
+    async_fire_time_changed(hass, dt_util.utcnow() + timedelta(seconds=31))
+    await hass.async_block_till_done()
+
+    mock_cloud.get_overview.assert_awaited_once()
+
+
+async def test_hybrid_first_cloud_read_ok_no_retry(
+    hass: HomeAssistant, mock_client: MagicMock, mock_cloud: MagicMock, mock_config_entry: MockConfigEntry
+) -> None:
+    """A successful first Connect read schedules no early retry."""
+    await setup_integration(hass, mock_config_entry)
+
+    async_fire_time_changed(hass, dt_util.utcnow() + timedelta(seconds=31))
+    await hass.async_block_till_done()
+
+    mock_cloud.get_overview.assert_awaited_once()
 
 
 async def test_cloud_skips_disabled_devices(

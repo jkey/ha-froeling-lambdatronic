@@ -33,6 +33,7 @@ from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 from .const import DOMAIN, ISSUE_PROTOCOL_DISABLED
 from .coordinator import (
     CloudCoordinator,
+    CloudData,
     CloudInfoCoordinator,
     FroelingConfigEntry,
     ModbusParametersCoordinator,
@@ -137,9 +138,14 @@ class FroelingSources:
         if source is None:
             return None
         if source is Source.CLOUD:
-            data = self.coordinator(source).data
+            data = self._cloud_data()
             return None if data is None else data.snapshot.value(key)
         return self._flat(source).get(key)
+
+    def _cloud_data(self) -> CloudData | None:
+        """Data of the last cloud update; None while the cloud fails (beyond its tolerance)."""
+        cloud = self._cloud
+        return None if cloud is None or not cloud.last_update_success else cloud.data
 
     def _flat(self, source: Source) -> Mapping[str, FlatValue]:
         """Values of a Modbus coordinator under full keys, computed once per update."""
@@ -152,7 +158,7 @@ class FroelingSources:
 
     def schedule(self, component_key: str) -> Mapping[Weekday, tuple[Phase, ...]] | None:
         """Weekly schedule of a component ('hc1') from the last cloud update; None if unknown."""
-        data = None if self._cloud is None else self._cloud.data
+        data = self._cloud_data()
         return None if data is None else data.snapshot.schedules.get(component_key)
 
     def cloud_limits(self, key: str) -> tuple[float | None, float | None] | None:

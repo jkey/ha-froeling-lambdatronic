@@ -17,7 +17,7 @@ from pytest_homeassistant_custom_component.common import (
 )
 from syrupy.assertion import SnapshotAssertion
 
-from custom_components.froeling_lambdatronic.const import DOMAIN
+from custom_components.froeling_lambdatronic.const import CLOUD_MAX_FAILURES, DOMAIN
 from custom_components.froeling_lambdatronic.sensor import FroelingCurveSensor, FroelingFaultSensor
 
 from . import setup_integration
@@ -96,12 +96,15 @@ async def test_fault_sensor_hybrid(
     ]
     assert {"since", "history"} <= FroelingFaultSensor._unrecorded_attributes
 
+    # While Connect fails the history is kept, beyond the tolerance it is dropped (no stale data).
     mock_cloud.get_errors.side_effect = ConnectionFailedError("down")
-    await mock_config_entry.runtime_data.cloud.async_refresh()
-    await hass.async_block_till_done()
-    state = hass.states.get(FAULT_TEXT)
-    assert state is not None
-    assert state.state != STATE_UNAVAILABLE
+    for failures in range(1, CLOUD_MAX_FAILURES + 1):
+        await mock_config_entry.runtime_data.cloud.async_refresh()
+        await hass.async_block_till_done()
+        state = hass.states.get(FAULT_TEXT)
+        assert state is not None
+        assert state.state != STATE_UNAVAILABLE
+        assert bool(state.attributes["history"]) is (failures < CLOUD_MAX_FAILURES)
 
 
 async def test_fault_sensor_cloud(
