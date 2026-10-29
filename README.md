@@ -110,7 +110,8 @@ nicht mehr ab.
 Menü mit „Modbus-Verbindung ändern oder hinzufügen“, „Fröling Connect hinzufügen oder Anmeldung
 ändern“ (gleiches Konto ohne Passwort = gespeichertes Passwort behalten) und – nur wenn beide
 eingerichtet sind – „Fröling Connect entfernen“ bzw. „Modbus entfernen“. Danach wird die
-Ausstattung neu erkannt: Neue Komponenten bekommen ein Gerät, weggefallene verlieren es.
+Ausstattung neu erkannt: Neue Komponenten bekommen ein Gerät, weggefallene verlieren es. Die
+Takte einer entfernten Verbindung verschwinden aus den Optionen.
 
 Lehnt Fröling Connect die Anmeldung ab, fragt Home Assistant nach neuen Zugangsdaten. Im
 Hybrid-Betrieb läuft Modbus so lange weiter.
@@ -196,6 +197,10 @@ actions:
 - Kein Umschalten: Fällt im Hybrid-Betrieb Modbus aus, werden die Modbus-Entitäten „nicht
   verfügbar“, die Connect-Entitäten bleiben – und umgekehrt. Ausfall und Rückkehr stehen je
   einmal im Log. Drosselt Fröling Connect (HTTP 429), wartet die Integration die verlangte Zeit.
+- Ausfalltoleranz bei Fröling Connect: Schlägt ein Abruf fehl, behalten die Connect-Entitäten
+  ihre letzten Werte (einmal als Warnung im Log); erst ab dem dritten Fehlschlag in Folge werden
+  sie „nicht verfügbar“. Scheitert im Hybrid-Betrieb schon der erste Abruf beim Start, versucht
+  die Integration es nach 30 s erneut.
 
 ## Anwendungsfälle und Beispiele
 
@@ -245,8 +250,8 @@ gehen von „Fröling PE1 Pellet 20“, einem Heizkreis „Wohnbereich“ und De
 - Das **Raumsoll** in `climate` gibt es nur mit Raumfühler und Modbus. Ob ein Raumfühler
   angeschlossen ist, weiß nur Fröling Connect – ohne Fühler meldet Modbus konstant 20 °C. Das
   Raumsoll gibt es daher nur mit Hybrid; mit nur Modbus zeigt `climate` immer die Vorlauftemperatur.
-  Erkannt wird bei der Einrichtung und bei „Neu konfigurieren“ (für bestehende Einträge einmal
-  beim ersten Start mit erreichbarem Connect); das Ergebnis wird im Eintrag gespeichert und gilt
+  Erkannt wird bei der Einrichtung und bei „Neu konfigurieren“ (für bestehende Einträge, oder wenn
+  Connect dabei nicht vollständig antwortete, einmal beim ersten Start mit erreichbarem Connect); das Ergebnis wird im Eintrag gespeichert und gilt
   auch ohne Connect. Einen nachträglich angeschlossenen Fühler über „Neu konfigurieren“ übernehmen. Es zeigt bei
   Absenken/Dauerabsenken das Absenk-Soll; in Automatik entscheidet der Zeitplan aus Fröling
   Connect (in einer Phase Heiz-Soll, sonst Absenk-Soll). Ohne Zeitplan aus Connect zeigt und
@@ -286,149 +291,286 @@ deinstallieren und Home Assistant neu starten. Am Kessel muss nichts zurückgest
 
 # Fröling Lambdatronic for Home Assistant
 
-Home Assistant integration for Fröling pellet boilers with **Lambdatronic 3200** control
-(developed and tested with a **PE1 Pellet**). It connects in three ways – **Modbus** (local, via a
-Modbus TCP gateway on COM2), **Fröling Connect** (cloud account of the Fröling app) or **both**
-(Modbus for every value it has, Fröling Connect for the rest) – with the same devices and
-entities.
+Home Assistant integration for Fröling pellet boilers with the **Lambdatronic 3200** control
+(developed and tested with a **PE1 Pellet**). It connects in three ways:
+
+- **Modbus (local)** via a Modbus TCP gateway on COM2 – fast and independent of the internet,
+- **Fröling Connect (cloud)** via the account of the Fröling app,
+- **both (hybrid)** – Modbus for every value it knows; Fröling Connect adds the rest.
+
+Devices and entities have the same names with all three. The integration uses the library
+[froeling-lambdatronic](https://pypi.org/project/froeling-lambdatronic/).
 
 ## Supported devices
 
-Lambdatronic 3200 boilers; for Modbus with COM2 (Fröling document B1200522) behind an
-RS232-to-Ethernet gateway in "Modbus TCP gateway" mode (e.g. Waveshare RS232/485-TO-ETH), for
-Connect registered in Fröling Connect. Up to 18 heating circuits, 8 DHW tanks, 4 buffers and a
-circulation pump; installed components are detected. Tested so far only with a PE1 pellet
-boiler (reports welcome as issues).
+- Fröling boilers with Lambdatronic 3200. For Modbus: interface COM2 (Fröling document
+  B1200522, "Kommunikationsprotokoll ModBus Lambdatronic 3200") and an RS232-to-Ethernet gateway
+  in "Modbus TCP gateway" mode, e.g. Waveshare RS232/485-TO-ETH. For Connect: a facility
+  registered in Fröling Connect.
+- Tested so far only with a PE1 Pellet; other boilers with Lambdatronic 3200 should work but are
+  untested. Reports are welcome as issues. Pellet store values only make sense with pellet
+  boilers.
+- Up to 18 heating circuits, 8 DHW tanks, 4 buffers and a circulation pump; installed components
+  are detected.
 
 ## What is available with which connection?
 
-| Function | Modbus | Connect | Both |
+| Function | Modbus | Connect | Hybrid |
 |---|---|---|---|
 | Current values (temperatures, states, counters) | ✔ | ✔ (interval ≥ 1 min) | ✔ (Modbus) |
-| Boiler control output, feed rate, induced draught speed, calculated setpoint | ✔ | – | ✔ |
-| Induced draught control, buffer charge, heating circuit pump | – | ✔ | ✔ (charge, pump) |
+| Boiler control output, feed rate, induced draught speed, calculated boiler setpoint | ✔ | – | ✔ |
+| Induced draught control, buffer charge, heating circuit pump | – | ✔ | ✔ (buffer charge, pump) |
 | Settings (heating curve, setback, heating limits, frost protection, DHW, buffer, circulation) | ✔ | ✔ | ✔ (Modbus) |
-| Room setpoint in `climate` (room sensor only) | – | – | ✔ |
-| System operating mode, boiler switch | – | ✔ | ✔ |
+| Room setpoint in `climate` (only with a room sensor) | – | – | ✔ |
+| Switching the system operating mode, switch "Boiler" | – | ✔ | ✔ |
 | DHW operating mode (automatic/extra charge) | – | ✔ | ✔ |
 | Setting the 2nd pellet filling | – | ✔ | ✔ |
-| Schedules (actions) | – | ✔ | ✔ |
-| Resetting ash and pellet counters | – | ✔ | ✔ |
+| Reading and writing schedules (actions) | – | ✔ | ✔ |
+| Resetting the ash and pellet counters | – | ✔ | ✔ |
 | Fault text, time and history | text | ✔ | ✔ |
-| System information (boiler type, serial number, versions) | – | ✔ | ✔ |
+| System information (boiler type, serial number, versions) at the boiler device | – | ✔ | ✔ |
 
-Values are written via Modbus if writable there, otherwise via Fröling Connect, which needs
-"Fernschalten über connect möglich" (remote control) enabled. Limits follow the write path
-(e.g. boiler setpoint 70–90 °C via Modbus, 40–90 °C with Connect only).
+Values are written via Modbus if they are writable there, otherwise via Fröling Connect. Writing
+via Connect needs "Fernschalten über connect möglich" (remote control). The allowed ranges follow
+the write path (e.g. boiler setpoint 70–90 °C via Modbus, 40–90 °C with Connect only).
 
 ## Prerequisites
 
-Modbus: service menu (code −7) → MODBUS settings: *COM 2 als MODBUS Schnittstelle = JA*,
-*MODBUS Adresse* (default 2, the slave ID), *MODBUS Protokoll = 1 (RTU)*,
-**MODBUS-Protokoll 2014 verwenden = JA** (required for writing). Gateway: 57600 baud, 8N1, no
-flow control, Modbus TCP ↔ RTU, port 502, straight cable (no null modem) to COM2. Fröling
-Connect: the credentials of the Fröling app; enable remote control to change settings.
+**Modbus** – at the boiler in the service menu (code −7) → MODBUS settings:
+
+| Setting | Value |
+|---|---|
+| COM 2 als MODBUS Schnittstelle | JA |
+| MODBUS Adresse | 2 (default; enter it as slave ID in the integration) |
+| MODBUS Protokoll | 1 (RTU) |
+| MODBUS-Protokoll 2014 verwenden | **JA** (otherwise writing is not possible) |
+
+Gateway: serial 57600 baud, 8N1, no flow control, mode "Modbus TCP ↔ RTU", port 502. Connect it
+with a **straight** cable (no null modem) to COM2 of the control board.
+
+**Fröling Connect** – the credentials of the Fröling app. To change settings via Connect,
+"Fernschalten über connect möglich" must be enabled at the boiler or in the app; otherwise the
+affected entities are unavailable and a repair issue explains the way.
 
 ## Installation
 
-HACS → Integrations → menu → **Custom repositories** →
-`https://github.com/jkey/ha-froeling-lambdatronic`, category **Integration**; install, restart
-Home Assistant, then add "Fröling Lambdatronic" under Settings → Devices & services.
-The gateway supports only one Modbus client at a time: remove other pollers first.
+1. HACS → Integrations → menu → **Custom repositories** →
+   `https://github.com/jkey/ha-froeling-lambdatronic`, category **Integration**.
+2. Install "Fröling Lambdatronic" and restart Home Assistant.
+3. Settings → Devices & services → **Add integration** → "Fröling Lambdatronic".
+
+**Important:** The gateway supports only one Modbus client at a time. Remove other pollers
+(e.g. a YAML `modbus:` entry for the same gateway) before setting up.
 
 ## Configuration
 
-Choose the connection type. Modbus asks for the host; port (502) and slave ID (2) are in the
-collapsed "Advanced" section. Connect asks for email and password and, for accounts with several
-facilities, the facility (name and boiler type). With both, a confirmation step lists components
-reported by only one of them; all components found are set up. The entry is named "Fröling
-{boiler type}" (with Connect) or "Fröling". A Connect facility can only be used by one entry.
-Components are not selected any more: hide unwanted ones with **Device → Disable** (Connect
-only: disabled devices are no longer polled).
+First choose the connection type: "Modbus (local)", "Fröling Connect (cloud)" or "Modbus and
+Fröling Connect".
 
-Options: value interval (Modbus, 10–300 s, default 30 s), parameter interval (Modbus, 1–60 min,
-default 5 min), Fröling Connect interval (1–60 min, default 2 min). Reconfigure offers changing
-or adding the Modbus connection, adding Fröling Connect or changing its login (same account
-without password keeps the stored one) and, with both, removing one of them; the equipment is
-detected again. If Fröling Connect rejects the login, Home Assistant asks for new credentials.
+| Step | Field | Meaning |
+|---|---|---|
+| Modbus | Host | IP address or host name of the gateway |
+| | Advanced → Port | TCP port, usually 502 |
+| | Advanced → Slave ID | MODBUS address at the boiler, usually 2 |
+| Fröling Connect | Email, password | Credentials of the Fröling app |
+| Facility | Facility | Only if the account has several facilities (name and boiler type) |
+| Different components | – | Only with both, if Modbus and Connect do not report the same components; everything found is set up |
 
-Upgrading from 0.1.0: entries are migrated on the first start; components deselected in the
-options become disabled devices; "Boiler output" becomes "Boiler control output" with the same
-entity ID. These entities are removed, so adapt automations, scripts and dashboards using them:
-`sensor.*_pellet_counter_kg` (replaced by the pellet counter in kg; the old statistics remain
-orphaned), `select.*_hc{n}_operating_mode` (replaced by the HVAC mode and presets of the heating
-circuit's `climate` entity), `number.*_dhw{n}_setpoint` (replaced by the DHW tank's
-`water_heater` entity), `sensor.*_dhw{n}_temperature` (DHW tank temperature, replaced
-by the current temperature of the tank's `water_heater` entity; the old statistics remain
-orphaned) and `sensor.*_system_state` (replaced by the "System operating mode" select, which shows
-only the three selectable modes automatic/domestic hot water/continuous load, other states show
-as unknown; the old history remains orphaned).
+With Modbus the integration reads the system state and detects the equipment before creating
+the entry, with Connect the component list of the facility. The entry is named "Fröling {boiler
+type}" (with Connect) or "Fröling"; it can be renamed in Home Assistant. A Connect facility can
+only be used by one entry.
 
-## Entities
+Components are not selected: hide what should not appear in Home Assistant with **Device →
+Disable**. With Connect only, disabled devices are no longer polled.
 
-A boiler device with child devices for heating circuits, DHW tanks, buffers and the circulation
-pump, named as in Fröling Connect or by the Fröling scheme ("Heating circuit 01", "DHW tank 01",
-"Buffer 01", "Circulation pump"); names set in Home Assistant stay. Highlights: `climate` per
-heating circuit (off/auto/heat, presets automatic, extra heating, setback, permanent setback,
-party; room setpoint only with a room sensor, Modbus and Connect), `water_heater` per DHW tank (setpoint, with
-Connect automatic/extra charge), sensors for temperatures, states, counters and the fault (with
-Connect attributes `since` and `history`), numbers for all customer settings, switches for the
-boiler (Connect) and the automatic feed, times for the pellet fillings, buttons to read the
-parameters again and to reset the ash and pellet counters (Connect), diagnostics such as hours
-since maintenance, hours in partial load, connected since and last signal.
+### Options
+
+| Field | Connection | Meaning |
+|---|---|---|
+| Value interval | Modbus | Current values, 10–300 s (default 30 s) |
+| Parameter interval | Modbus | Settings, 1–60 min (default 5 min); additionally right after every change |
+| Fröling Connect interval | Connect | 1–60 min (default 2 min); short intervals can trigger the rate limit of Fröling Connect |
+
+### Reconfigure
+
+Menu with "Change or add the Modbus connection", "Add Fröling Connect or change the login" (the
+same account without a password keeps the stored password) and – only if both are set up –
+"Remove Fröling Connect" or "Remove Modbus". Afterwards the equipment is detected again: new
+components get a device, missing ones lose it. The intervals of a removed connection are removed
+from the options.
+
+If Fröling Connect rejects the login, Home Assistant asks for new credentials. With both
+connections Modbus keeps running meanwhile.
+
+### Upgrading from 0.1.0
+
+Existing entries are taken over at the first start (Modbus, or Modbus and Connect). Components
+deselected in the options appear as disabled devices. "Boiler output" becomes "Boiler control
+output" with the same entity ID. These entities are removed; please adapt automations, scripts
+and dashboards using them:
+
+| Removed | Replacement |
+|---|---|
+| `sensor.*_pellet_counter_kg` (pellet counter kg) | "Pellet counter" (kg); the statistics of the old sensor remain orphaned |
+| `select.*_hc{n}_operating_mode` (operating mode of the heating circuits) | HVAC mode and presets of the heating circuit's `climate` entity |
+| `number.*_dhw{n}_setpoint` (setpoint of the DHW tanks) | `water_heater` entity of the DHW tank |
+| `sensor.*_dhw{n}_temperature` (temperature of the DHW tanks) | current temperature (`current_temperature`) of the DHW tank's `water_heater` entity; the statistics of the old sensor remain orphaned |
+| `sensor.*_system_state` (system state) | Select "System operating mode"; it shows only the three selectable modes (automatic/domestic hot water/continuous load), other states show as unknown; the history of the old sensor remains orphaned |
+
+## Devices and entities
+
+The boiler device with child devices for heating circuits, DHW tanks, buffers and the
+circulation pump. The child devices are named as in Fröling Connect (e.g. "Wohnbereich"), without
+Connect by the Fröling scheme ("Heating circuit 01", "DHW tank 01", "Buffer 01", "Circulation
+pump"); names set in Home Assistant stay. With Connect the boiler device carries boiler type,
+serial number and software versions.
+
+| Device | Entities |
+|---|---|
+| Boiler | Boiler temperature, boiler setpoint calculated, flue gas temperature, residual oxygen, induced draught speed, induced draught control, feed rate, boiler control output, outside temperature, pellet hopper level, pellet consumption (total) and pellet counter (kg), boiler state, fault text (attributes `error_code`, `more_errors`, with Connect `since` and `history`), return temperature (disabled) |
+| Boiler (binary) | Fault, boiler demand, Fröling Connect (connection, diagnostic) |
+| Boiler (diagnostic) | Operating hours, hours heating, burner starts, heating hours until ash emptying, hours since maintenance, hours in partial load, connected since and last signal (both disabled), button "Read parameters" |
+| Boiler (settings) | Boiler setpoint, pellet store stock and pellet store minimum (t), system operating mode (automatic/domestic hot water/continuous load), switches "Boiler" and "Automatic feed", times of the 1st and 2nd pellet filling, buttons "Reset ash counter" and "Reset pellet counter" |
+| Heating circuit | `climate`: off/auto/heat (= extra heating) and presets automatic, extra heating, setback, permanent setback, party; current temperature = room temperature with a room sensor, otherwise flow; room setpoint only with a room sensor (hybrid); heating/idle from the heating circuit pump (Connect). Plus flow temperature, flow setpoint, flow by heating curve (attribute `curve`, not recorded), room temperature (disabled), pump (binary) |
+| Heating circuit (settings) | Heating curve flow at plus/minus 10 °C, setback, heating limit in heating and setback mode, frost protection, pump off below flow setpoint, overheat protection from buffer top |
+| DHW tank | `water_heater`: temperature at the top, setpoint, with Connect operating mode automatic/extra charge; pump; setting "Recharge below" |
+| Buffer | Temperature top and bottom, pump, charge, ignition below buffer temperature (diagnostic, disabled), setting "Heating circuit release from" |
+| Circulation pump | Pump (%), return temperature (with Modbus only with a sensor; with Connect only disabled, because the cloud reports 0 without a sensor), flow switch (binary), setting "Pump off above return temperature" |
 
 ## Actions
 
-`froeling_lambdatronic.get_schedule` returns the weekly switch-on phases of a heating circuit
-(`climate`) or DHW tank (`water_heater`), e.g.
+**`froeling_lambdatronic.get_schedule`** reads the switch-on phases of a heating circuit
+(`climate`) or DHW tank (`water_heater`) and returns them as response, e.g.
 `{"monday": [{"from": "04:30", "to": "22:00"}], …, "unreadable_days": []}`. Days whose phases
 Fröling Connect returns unreadable are missing in the response and listed in `unreadable_days`
-(e.g. `["tuesday"]`); a read-edit-write cycle must give them again.
-`froeling_lambdatronic.set_schedule` replaces the phases of the given days (`monday` …
-`sunday`, at least one day, up to four `{from, to}` per day, `to` may be `24:00` in YAML); days
-not given stay, an empty list clears a day. Fröling Connect always writes the whole week, so the
-action refuses to write while a day not given has unreadable phases (it would be erased); the
-error names those days. Both need Fröling Connect; see the German example above.
+(e.g. `["tuesday"]`); whoever reads, changes and writes back the schedule must give them again.
+
+**`froeling_lambdatronic.set_schedule`** writes the phases of single days (`monday` …
+`sunday`), at least one day. Up to four phases `{from, to}` per day; `to` may be `24:00` (YAML
+only). Days not given stay, an empty list clears the day. As Fröling Connect always writes the
+whole week, the action refuses to write while a day not given has unreadable phases (it would be
+erased otherwise); the error names the days. Both actions need Fröling Connect.
+
+```yaml
+# Heat longer at the weekend
+triggers:
+  - trigger: time
+    at: "18:00:00"
+conditions:
+  - condition: time
+    weekday: fri
+actions:
+  - action: froeling_lambdatronic.set_schedule
+    target:
+      entity_id: climate.froling_pe1_pellet_20_wohnbereich
+    data:
+      saturday:
+        - from: "06:00"
+          to: "23:00"
+      sunday:
+        - from: "06:00"
+          to: "23:00"
+```
 
 ## Data updates
 
-Modbus: values every 30 s, parameters every 5 min and right after each change. Fröling Connect:
-every 2 min (overview only next to Modbus, all components otherwise); system information hourly.
-No failover: if one source fails, only its entities become unavailable; failure and recovery are
-logged once. Rate limits (HTTP 429) are respected.
+- Modbus: current values every 30 s, settings every 5 min and right after every change (both
+  adjustable), one after the other over a permanent connection.
+- Fröling Connect: every 2 min (adjustable) – with both connections only the overview (one
+  request), otherwise all components as well. System information and connection state hourly.
+  The boiler reports to Connect about once a minute.
+- No failover: if Modbus fails with both connections, the Modbus entities become unavailable,
+  the Connect entities stay – and vice versa. Failure and recovery are logged once each. If
+  Fröling Connect limits the rate (HTTP 429), the integration waits as long as asked for.
+- Outage tolerance for Fröling Connect: if a read fails, the Connect entities keep their last
+  values (logged once as a warning); only from the third failed read in a row they become
+  unavailable. If already the first read at the start fails with both connections, the
+  integration tries again after 30 s.
 
-## Use cases
+## Use cases and examples
 
-Push notification on a fault, switching to domestic hot water in summer, longer heating at the
-weekend, reordering pellets when the store runs low – see the German examples above.
+Fault as push notification:
+
+```yaml
+triggers:
+  - trigger: state
+    entity_id: binary_sensor.froling_pe1_pellet_20_storung_aktiv
+    to: "on"
+actions:
+  - action: notify.mobile_app_handy
+    data:
+      title: Boiler fault
+      message: "{{ states('sensor.froling_pe1_pellet_20_storung') }}"
+```
+
+Switch to domestic hot water in summer (needs Fröling Connect):
+
+```yaml
+triggers:
+  - trigger: numeric_state
+    entity_id: sensor.froling_pe1_pellet_20_aussentemperatur
+    above: 18
+    for: { hours: 24 }
+actions:
+  - action: select.select_option
+    target:
+      entity_id: select.froling_pe1_pellet_20_anlagen_betriebsart
+    data:
+      option: domestic_hot_water
+```
+
+Reorder pellets when the store runs low: automation on
+`number.froling_pe1_pellet_20_pelletlager_restbestand` below a threshold.
+
+The entity IDs depend on the name of the entry, the device names and the language; the examples
+assume "Fröling PE1 Pellet 20", a heating circuit "Wohnbereich" and German.
 
 ## Known limitations
 
-Fröling Connect is an unofficial cloud API. The system operating mode and the boiler switch need
-Connect. One Modbus client per gateway. The room setpoint needs a room sensor and Modbus, and
-only Connect tells whether a room sensor is connected (Modbus reports 20 °C without one), so it
-is available with both connections only; it is detected at setup and reconfiguration (for
-existing entries once at the first start with Connect reachable) and stored, so it also applies
-without Connect. Reconfigure after connecting a room sensor later. In
-automatic the Connect schedule decides between heating and setback setpoint. Without a schedule
-from Connect the climate entity shows and writes the heating setpoint in automatic; the setback
-setpoint is reachable via the setback preset. Faults can be shown but not acknowledged. Buffer
-and circulation schedules, expert mode, statistics and Modbus remote control (48001 ff.) are not
-used. Fault texts are German.
+- **Fröling Connect is an unofficial cloud API** and may change; then only the Connect values
+  are affected. The main path stays local (`iot_class: local_polling`).
+- The **system operating mode** and the switch "Boiler" can only be switched via Connect; via
+  Modbus the operating mode is read-only.
+- **One client per gateway:** if two programs ask at the same time, the gateway mixes up answers.
+- The **room setpoint** in `climate` exists only with a room sensor and Modbus. Only Fröling
+  Connect knows whether a room sensor is connected – without a sensor Modbus reports a constant
+  20 °C. The room setpoint is therefore available with both connections only; with Modbus only
+  `climate` always shows the flow temperature. It is detected at setup and at "Reconfigure" (for
+  existing entries, or if Connect did not answer completely then, once at the first start with
+  Connect reachable); the result is stored in the
+  entry and also applies without Connect. Take over a room sensor connected later with
+  "Reconfigure". In setback/permanent setback it shows the setback setpoint; in automatic the
+  schedule from Fröling Connect decides (heating setpoint within a phase, setback setpoint
+  otherwise). Without a schedule from Connect, `climate` shows and writes the heating setpoint in
+  automatic; the setback setpoint is reachable via the preset "Setback".
+- Faults can only be shown, not acknowledged. With Connect only, a fault is what the boiler state
+  reports; warnings are in the history.
+- Schedules of buffer and circulation pump, expert mode, statistics and notifications of Connect
+  are not used; neither is the remote control via Modbus (registers 48001 ff.).
+- Sensors that are not connected deliver placeholder values and are shown as "unknown".
+- Fault texts come from the Fröling documentation or from Connect and are German.
 
 ## Troubleshooting
 
-"Cannot connect": check IP and port. "Boiler does not answer": slave ID, cable, serial settings.
-"Fröling Connect rejected the login": check the credentials in the app. Repair "Modbus writing
-disabled": set *MODBUS-Protokoll 2014 verwenden = JA*. Repair "remote control disabled": enable
-it in the Connect app or at the boiler. Diagnostics contain the connection type, the source of
-each value, raw registers, Connect values and system information; credentials, facility ID and
-serial number are redacted.
+| Message | Cause and remedy |
+|---|---|
+| "Cannot connect to the gateway" | Check IP/port; is the gateway reachable (its web page)? |
+| "The boiler does not answer" | Slave ID, straight cable at COM2, 57600 8N1, "COM 2 als MODBUS Schnittstelle = JA" |
+| "The boiler answered unexpectedly" | Wrong slave ID or gateway not in Modbus TCP mode |
+| "Fröling Connect rejected the login" | Check the credentials in the Fröling app |
+| Repair "Modbus writing disabled" | Set "MODBUS-Protokoll 2014 verwenden = JA" |
+| Repair "remote control via Fröling Connect disabled" | Enable it in the Connect app or at the boiler |
+| Values jump or time-outs | Switch off a second Modbus client on the gateway |
+
+Diagnostics (device → Download diagnostics) contain the connection type, the source of each
+value, raw registers, Connect values and system information. Credentials, facility ID and serial
+number are redacted; address, name and pairing code from Connect are not taken over at all.
 
 ## Removal
 
-Settings → Devices & services → Fröling Lambdatronic → menu → **Delete**, then uninstall in
-HACS and restart Home Assistant.
+Settings → Devices & services → Fröling Lambdatronic → menu → **Delete**. Then uninstall in
+HACS and restart Home Assistant. Nothing needs to be reset at the boiler.
 
 ## License
 
