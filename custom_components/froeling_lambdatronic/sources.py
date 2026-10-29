@@ -266,7 +266,8 @@ class FroelingSources:
         """Detail of a component ('hc1', 'dhw1') read from Fröling Connect.
 
         It carries the weekly schedule (`schedule`) and the days whose phases could not be read
-        (`skipped_phase_days`).
+        (`skipped_phase_days`). A component without all seven days has no weekly schedule, as
+        for writing.
         """
         client, facility_id = self._schedule_client()
         async with self._cloud_errors(None, failed_key="cloud_update_failed"):
@@ -274,7 +275,10 @@ class FroelingSources:
             component = next((c for c in components if c.key == component_key), None)
             if component is None:
                 raise _no_schedule(component_key)
-            return await client.get_component_detail(facility_id, component.component_id)
+            detail = await client.get_component_detail(facility_id, component.component_id)
+        if set(detail.schedule_ids) != set(Weekday):
+            raise _no_schedule(component_key)
+        return detail
 
     async def async_set_schedule(
         self, component_key: str, changes: Mapping[Weekday, Sequence[Phase]]

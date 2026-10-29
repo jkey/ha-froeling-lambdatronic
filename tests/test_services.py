@@ -254,3 +254,27 @@ async def test_no_weekly_schedule(
     with pytest.raises(ServiceValidationError) as raised:
         await _get(hass, HC1)
     assert raised.value.translation_key == "no_schedule"
+
+
+@pytest.mark.usefixtures("mock_client")
+async def test_incomplete_weekly_schedule(
+    hass: HomeAssistant, mock_cloud: MagicMock, mock_config_entry: MockConfigEntry
+) -> None:
+    """A detail without all seven days is no weekly schedule: reading and writing are refused alike."""
+    await setup_integration(hass, mock_config_entry)
+
+    def detail(facility_id: int, component_id: str) -> CloudComponentDetail:
+        found = CLOUD_DETAILS_BY_ID[component_id]
+        ids: dict[Weekday, int] = {
+            day: number for day, number in found.schedule_ids.items() if day is not Weekday.SUNDAY
+        }
+        return replace(found, schedule_ids=ids)
+
+    mock_cloud.get_component_detail.side_effect = detail
+
+    for action in (_get(hass, HC1), _set(hass, HC1, monday=[])):
+        with pytest.raises(ServiceValidationError) as raised:
+            await action
+        assert raised.value.translation_key == "no_schedule"
+        assert raised.value.translation_placeholders == {"component": "hc1"}
+    mock_cloud.set_schedule.assert_not_awaited()
