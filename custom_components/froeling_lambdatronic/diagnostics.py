@@ -36,9 +36,12 @@ COMPONENT_FIELDS = (
 
 
 def _coordinator(coordinator: DataUpdateCoordinator[Any]) -> dict[str, Any]:
+    # The repr of a translated error holds only its translation key; its text carries the cause
+    # (the library error, free of IDs) as placeholder.
+    error = coordinator.last_exception
     return {
         "last_update_success": coordinator.last_update_success,
-        "last_exception": None if coordinator.last_exception is None else repr(coordinator.last_exception),
+        "last_exception": None if error is None else f"{type(error).__name__}: {error}",
     }
 
 
