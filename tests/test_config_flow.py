@@ -536,6 +536,43 @@ async def test_reconfigure_remove_modbus(
     mock_client.close.assert_awaited()
 
 
+@pytest.mark.parametrize(
+    ("option", "client", "method"),
+    [
+        ("remove_cloud", "mock_client", "probe"),
+        ("remove_modbus", "mock_cloud", "get_components"),
+        ("remove_modbus", "mock_cloud", "get_component_detail"),
+    ],
+)
+async def test_reconfigure_remove_unexpected_error(
+    hass: HomeAssistant,
+    request: pytest.FixtureRequest,
+    mock_client: MagicMock,
+    mock_cloud: MagicMock,
+    mock_config_entry: MockConfigEntry,
+    option: str,
+    client: str,
+    method: str,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """An unexpected error while detecting the remaining connection is shown as unknown and logged."""
+    await setup_integration(hass, mock_config_entry)
+    mock_cloud.get_components.return_value = cloud_components((1,))
+    mocked = getattr(request.getfixturevalue(client), method)
+    working = mocked.side_effect
+    mocked.side_effect = RuntimeError("boom")
+    result = await _reconfigure(hass, mock_config_entry, option)
+
+    result = dict(await hass.config_entries.flow.async_configure(result["flow_id"], {}))
+
+    assert result["type"] is FlowResultType.FORM
+    assert result["errors"] == {"base": "unknown"}
+    assert "Unexpected error" in caplog.text
+    mocked.side_effect = working
+    result = dict(await hass.config_entries.flow.async_configure(result["flow_id"], {}))
+    assert result["reason"] == "reconfigure_successful"
+
+
 @pytest.mark.usefixtures("mock_client", "mock_cloud")
 async def test_reconfigure_remove_modbus_already_configured(
     hass: HomeAssistant, mock_config_entry: MockConfigEntry

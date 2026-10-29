@@ -328,19 +328,25 @@ class FroelingConfigFlow(ConfigFlow, domain=DOMAIN):
                 )
             except FroelingError as err:
                 return _modbus_error(err)
+            except Exception:
+                _LOGGER.exception("Unexpected error while connecting to %s", self._modbus[CONF_HOST])
+                return "unknown"
         if self._cloud is not None and self._cloud_equipment is None:
             client = self._cloud_client or FroelingConnectClient(
                 async_get_clientsession(self.hass), self._cloud[CONF_USERNAME], self._cloud[CONF_PASSWORD]
             )
             try:
                 components = await client.get_components(self._cloud[CONF_FACILITY_ID])
+                # A failed detail read does not fail the flow: the setup detects the room sensors then.
+                self._room_sensors = await async_detect_room_sensors(
+                    client, self._cloud[CONF_FACILITY_ID], components
+                )
             except FroelingError as err:
                 return _cloud_error(err)
+            except Exception:
+                _LOGGER.exception("Unexpected error while reading the Fröling Connect components")
+                return "unknown"
             self._cloud_equipment = equipment_from_components(components)
-            # A failed detail read does not fail the flow: the setup detects the room sensors then.
-            self._room_sensors = await async_detect_room_sensors(
-                client, self._cloud[CONF_FACILITY_ID], components
-            )
         return None
 
     async def _async_detect(self, host: str, port: int, slave: int) -> Equipment:
