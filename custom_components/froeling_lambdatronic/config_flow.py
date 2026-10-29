@@ -142,8 +142,9 @@ class FroelingConfigFlow(ConfigFlow, domain=DOMAIN):
         self._cloud: dict[str, Any] | None = None
         self._modbus_equipment: Equipment | None = None
         self._cloud_equipment: Equipment | None = None
-        # Heating circuits with a room sensor, read with the Connect components.
-        self._room_sensors: list[int] = []
+        # Heating circuits with a room sensor, read with the Connect components; None if a detail
+        # read failed (the setup detects them then).
+        self._room_sensors: list[int] | None = []
         self._cloud_client: FroelingConnectClient | None = None
         self._facilities: list[Facility] = []
         self._title = TITLE
@@ -336,9 +337,9 @@ class FroelingConfigFlow(ConfigFlow, domain=DOMAIN):
             except FroelingError as err:
                 return _cloud_error(err)
             self._cloud_equipment = equipment_from_components(components)
-            # A failed detail read only costs the room setpoint, not the setup.
+            # A failed detail read does not fail the flow: the setup detects the room sensors then.
             self._room_sensors = await async_detect_room_sensors(
-                client, self._cloud[CONF_FACILITY_ID], components, ignore_errors=True
+                client, self._cloud[CONF_FACILITY_ID], components
             )
         return None
 
@@ -394,12 +395,12 @@ class FroelingConfigFlow(ConfigFlow, domain=DOMAIN):
             if detected is not None:
                 equipment = detected if equipment is None else merge_equipment(equipment, detected)[0]
         assert equipment is not None
-        data: dict[str, Any] = {
-            **(self._modbus or {}),
-            CONF_EQUIPMENT: equipment_data(equipment),
-            # Only Fröling Connect tells whether a room sensor is connected.
-            CONF_ROOM_SENSORS: self._room_sensors if self._cloud is not None else [],
-        }
+        data: dict[str, Any] = {**(self._modbus or {}), CONF_EQUIPMENT: equipment_data(equipment)}
+        # Only Fröling Connect tells whether a room sensor is connected.
+        if self._cloud is None:
+            data[CONF_ROOM_SENSORS] = []
+        elif self._room_sensors is not None:
+            data[CONF_ROOM_SENSORS] = self._room_sensors
         if self._cloud is not None:
             data[CONF_CLOUD] = dict(self._cloud)
         if self.source == SOURCE_RECONFIGURE:

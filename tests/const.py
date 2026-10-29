@@ -13,6 +13,7 @@ from froeling_lambdatronic import (
     CirculationValues,
     CloudBoilerState,
     CloudComponent,
+    CloudOverview,
     Equipment,
     HeatingCircuitParameters,
     HeatingCircuitValues,
@@ -158,6 +159,20 @@ def cloud_components(unknown: Iterable[int]) -> list[CloudComponent]:
         replace(c, sub_type=None, room_sensor=None) if c.key == f"hc{c.number}" and c.number in unknown else c
         for c in CLOUD_COMPONENTS
     ]
+
+
+def cloud_overview(unknown: Iterable[int]) -> CloudOverview:
+    """The overview with heating circuits of another sub type than 'OUT_TEMP_CRTL' (room sensor None)."""
+    unknown = set(unknown)
+    return replace(
+        CLOUD_OVERVIEW,
+        components=tuple(
+            replace(item, component=replace(item.component, sub_type=None, room_sensor=None))
+            if item.component.key == f"hc{item.component.number}" and item.component.number in unknown
+            else item
+            for item in CLOUD_OVERVIEW.components
+        ),
+    )
 
 
 EQUIPMENT_DATA = {

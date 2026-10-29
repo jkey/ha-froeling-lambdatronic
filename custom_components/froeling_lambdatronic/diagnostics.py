@@ -69,9 +69,9 @@ def _cloud(cloud: CloudCoordinator | None) -> dict[str, Any] | None:
         result["components"] = async_redact_data(
             [{key: getattr(c, key) for key in COMPONENT_FIELDS} for c in data.snapshot.components], TO_REDACT
         )
-        # As read by the coordinator (with Modbus from the overview only); the entry data hold the
-        # room sensors detected from the component details.
-        result["room_sensors"] = dict(sorted(data.snapshot.room_sensors.items()))
+        # As the last refresh tells them (with Modbus from the overview only, None if unknown); not
+        # the room sensors in use, which the entry data hold.
+        result["room_sensors_snapshot"] = dict(sorted(data.snapshot.room_sensors.items()))
         result["boiler_state"] = asdict(data.boiler_state)
         result["errors"] = [asdict(error) for error in data.errors]
     return result

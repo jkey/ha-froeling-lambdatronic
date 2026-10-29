@@ -141,7 +141,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: FroelingConfigEntry) -> 
         await cloud_info.async_refresh()
         if CONF_ROOM_SENSORS not in entry.data:
             # Before the platforms: the climate entities read the room sensors from the entry data.
-            await _async_detect_room_sensors(hass, entry, cloud_client, facility_id)
+            await _async_detect_room_sensors(hass, entry, cloud)
 
     entry.runtime_data = FroelingRuntimeData(
         modbus=modbus,
@@ -171,20 +171,24 @@ async def async_setup_entry(hass: HomeAssistant, entry: FroelingConfigEntry) -> 
 
 
 async def _async_detect_room_sensors(
-    hass: HomeAssistant, entry: FroelingConfigEntry, client: FroelingConnectClient, facility_id: int
+    hass: HomeAssistant, entry: FroelingConfigEntry, cloud: CloudCoordinator
 ) -> None:
-    """Detect the room sensors of an entry from before 0.2.0b2 once and store them in the entry data.
+    """Detect the room sensors of an entry without stored ones once and store them in the entry data.
 
-    Nothing is stored if Fröling Connect fails: no room sensor for this start, the next start tries
-    again. There is no update listener, so storing does not reload the entry.
+    The first refresh already tells most heating circuits (with Connect only from the component
+    details); only the detail of a circuit still unknown is read. Nothing is stored if Fröling
+    Connect fails: no room sensor for this start, the next start tries again. There is no update
+    listener, so storing does not reload the entry.
     """
-    try:
-        components = await client.get_components(facility_id)
-        detected = await async_detect_room_sensors(client, facility_id, components, ignore_errors=False)
-    except FroelingError as err:
-        _LOGGER.debug("Room sensors not detected, Fröling Connect failed: %s", err)
+    if cloud.data is None:
+        _LOGGER.debug("Room sensors not detected, Fröling Connect failed")
         return
-    hass.config_entries.async_update_entry(entry, data={**entry.data, CONF_ROOM_SENSORS: detected})
+    snapshot = cloud.data.snapshot
+    detected = await async_detect_room_sensors(
+        cloud.client, cloud.facility_id, snapshot.components, snapshot.room_sensors
+    )
+    if detected is not None:
+        hass.config_entries.async_update_entry(entry, data={**entry.data, CONF_ROOM_SENSORS: detected})
 
 
 async def async_migrate_entry(hass: HomeAssistant, entry: FroelingConfigEntry) -> bool:

@@ -168,7 +168,7 @@ async def test_room_sensors(
 
 @pytest.mark.usefixtures("mock_client")
 async def test_room_sensors_detail_fails(hass: HomeAssistant, mock_cloud: MagicMock) -> None:
-    """A failed detail read counts as no room sensor; the other circuits are still read."""
+    """A failed detail read stores no room sensors at all: the setup detects them later."""
     mock_cloud.get_components.return_value = cloud_components((1, 2))
     mock_cloud.detail_room_sensors = {"hc2": True}
     detail = mock_cloud.get_component_detail.side_effect
@@ -177,12 +177,17 @@ async def test_room_sensors_detail_fails(hass: HomeAssistant, mock_cloud: MagicM
         if component_id == "300_3100"
         else detail(facility_id, component_id)
     )
-    result = await _start(hass, ConnectionType.CLOUD)
+    result = await _start(hass, ConnectionType.HYBRID)
+    result = dict(await hass.config_entries.flow.async_configure(result["flow_id"], MODBUS_INPUT))
 
     result = dict(await hass.config_entries.flow.async_configure(result["flow_id"], CLOUD_INPUT))
 
     assert result["type"] is FlowResultType.CREATE_ENTRY
-    assert result["data"][CONF_ROOM_SENSORS] == [2]
+    assert CONF_ROOM_SENSORS not in result["data"]
+    # The setup of the new entry detected them from its first refresh (overview: 'OUT_TEMP_CRTL').
+    entry = hass.config_entries.async_get_entry(result["result"].entry_id)
+    assert entry is not None
+    assert entry.data[CONF_ROOM_SENSORS] == []
 
 
 def _raise(err: Exception) -> None:

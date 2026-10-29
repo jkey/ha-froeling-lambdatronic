@@ -90,7 +90,7 @@
       ]),
       'last_exception': None,
       'last_update_success': True,
-      'room_sensors': dict({
+      'room_sensors_snapshot': dict({
         'hc1': False,
         'hc2': False,
       }),
@@ -401,7 +401,7 @@
       ]),
       'last_exception': None,
       'last_update_success': True,
-      'room_sensors': dict({
+      'room_sensors_snapshot': dict({
         'hc1': False,
         'hc2': False,
       }),

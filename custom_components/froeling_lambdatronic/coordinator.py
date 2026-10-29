@@ -56,28 +56,27 @@ async def async_detect_room_sensors(
     client: FroelingConnectClient,
     facility_id: int,
     components: Iterable[CloudComponent],
-    *,
-    ignore_errors: bool,
-) -> list[int]:
-    """Sorted numbers of the heating circuits with a room sensor.
+    known: Mapping[str, bool | None] | None = None,
+) -> list[int] | None:
+    """Sorted numbers of the heating circuits with a room sensor; None if a component detail failed.
 
-    The component list tells only 'no room sensor' (sub type 'OUT_TEMP_CRTL'); for any other
-    heating circuit the picture URL of its component detail is read. Only a known True counts.
-    With `ignore_errors` a failed detail read means no room sensor, otherwise the error is raised.
+    `known` maps heating circuit keys to what Fröling Connect already told (the room sensors of a
+    snapshot); otherwise `CloudComponent.room_sensor` of the component list counts. Only for a
+    heating circuit still unknown the picture URL of its component detail is read. Only a known
+    True counts as a room sensor.
     """
     room_sensors: dict[str, bool | None] = {}
     for component in components:
         if component.type is not ComponentType.CIRCUIT or component.key is None:
             continue
-        present = component.room_sensor
+        present = component.room_sensor if known is None else known.get(component.key)
         if present is None:
             try:
                 detail = await client.get_component_detail(facility_id, component.component_id)
-            except FroelingError:
-                if not ignore_errors:
-                    raise
-            else:
-                present = detail.component.room_sensor
+            except FroelingError as err:
+                _LOGGER.debug("Room sensor of %s not read, Fröling Connect failed: %s", component.key, err)
+                return None
+            present = detail.component.room_sensor
         room_sensors[component.key] = present
     return room_sensor_circuits(room_sensors)
 

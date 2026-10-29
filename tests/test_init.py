@@ -35,7 +35,7 @@ from custom_components.froeling_lambdatronic.const import (
 from custom_components.froeling_lambdatronic.sources import Source
 
 from . import setup_integration
-from .const import CLOUD_COMPONENTS, EQUIPMENT_DATA, FACILITY_ID, cloud_components, entry_data
+from .const import CLOUD_COMPONENTS, EQUIPMENT_DATA, FACILITY_ID, cloud_components, cloud_overview, entry_data
 
 BOILER_TEMPERATURE = "sensor.froling_pe1_boiler_temperature"
 
@@ -262,13 +262,21 @@ def _entry_without_room_sensors(connection: ConnectionType) -> MockConfigEntry:
 
 
 @pytest.mark.usefixtures("mock_client")
-@pytest.mark.parametrize("connection", [ConnectionType.CLOUD, ConnectionType.HYBRID])
+@pytest.mark.parametrize(
+    ("connection", "detail_reads"),
+    [
+        # Connect only: the first refresh reads every detail; nothing is read in addition.
+        (ConnectionType.CLOUD, len(CLOUD_COMPONENTS)),
+        # Hybrid: only the details of the circuits the overview does not tell.
+        (ConnectionType.HYBRID, 2),
+    ],
+)
 async def test_setup_detects_missing_room_sensors(
-    hass: HomeAssistant, mock_cloud: MagicMock, connection: ConnectionType
+    hass: HomeAssistant, mock_cloud: MagicMock, connection: ConnectionType, detail_reads: int
 ) -> None:
-    """No room sensors stored: detected once from the component details, stored without a reload."""
+    """No room sensors stored: detected once from the first refresh, stored without a reload."""
     entry = _entry_without_room_sensors(connection)
-    mock_cloud.get_components.return_value = cloud_components((1, 2))
+    mock_cloud.get_overview.return_value = cloud_overview((1, 2))
     mock_cloud.detail_room_sensors = {"hc1": True, "hc2": False}
 
     await setup_integration(hass, entry)
@@ -276,6 +284,8 @@ async def test_setup_detects_missing_room_sensors(
     assert entry.state is ConfigEntryState.LOADED
     assert entry.data[CONF_ROOM_SENSORS] == [1]
     mock_cloud.get_overview.assert_awaited_once()
+    assert mock_cloud.get_components.await_count == (connection is ConnectionType.CLOUD)
+    assert mock_cloud.get_component_detail.await_count == detail_reads
     # Stored before the platforms: the room setpoint (Modbus only) is offered at the first start.
     state = hass.states.get("climate.froling_pe1_wohnbereich")
     assert state is not None
@@ -293,13 +303,26 @@ async def test_setup_detects_missing_room_sensors(
 
 
 @pytest.mark.usefixtures("mock_client")
-@pytest.mark.parametrize("failing", ["get_components", "get_component_detail"])
+async def test_setup_room_sensors_from_overview(hass: HomeAssistant, mock_cloud: MagicMock) -> None:
+    """Hybrid: the overview tells every circuit (sub type 'OUT_TEMP_CRTL'); no Connect read in addition."""
+    entry = _entry_without_room_sensors(ConnectionType.HYBRID)
+
+    await setup_integration(hass, entry)
+
+    assert entry.data[CONF_ROOM_SENSORS] == []
+    mock_cloud.get_overview.assert_awaited_once()
+    mock_cloud.get_components.assert_not_awaited()
+    mock_cloud.get_component_detail.assert_not_awaited()
+
+
+@pytest.mark.usefixtures("mock_client")
+@pytest.mark.parametrize("failing", ["get_overview", "get_component_detail"])
 async def test_setup_room_sensors_connect_down(
     hass: HomeAssistant, mock_cloud: MagicMock, failing: str
 ) -> None:
     """Connect fails while detecting: nothing stored (no room sensor this start), retried next start."""
     entry = _entry_without_room_sensors(ConnectionType.HYBRID)
-    mock_cloud.get_components.return_value = cloud_components((1,))
+    mock_cloud.get_overview.return_value = cloud_overview((1,))
     working = getattr(mock_cloud, failing).side_effect
     getattr(mock_cloud, failing).side_effect = ConnectionFailedError("down")
 
@@ -307,7 +330,11 @@ async def test_setup_room_sensors_connect_down(
 
     assert entry.state is ConfigEntryState.LOADED
     assert CONF_ROOM_SENSORS not in entry.data
-    state = hass.states.get("climate.froling_pe1_wohnbereich")
+    mock_cloud.get_components.assert_not_awaited()
+    # Without Connect data the device has no Connect name: find the entity by its unique ID.
+    entity_id = er.async_get(hass).async_get_entity_id("climate", DOMAIN, f"{entry.entry_id}_hc1_climate")
+    assert entity_id is not None
+    state = hass.states.get(entity_id)
     assert state is not None
     assert "temperature" not in state.attributes
 
