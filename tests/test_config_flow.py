@@ -435,6 +435,28 @@ async def test_reconfigure_to_other_entry(hass: HomeAssistant, mock_config_entry
     assert result["reason"] == "already_configured"
 
 
+@pytest.mark.usefixtures("mock_client", "mock_cloud")
+async def test_reconfigure_cloud_facility_of_other_entry(
+    hass: HomeAssistant, mock_config_entry: MockConfigEntry
+) -> None:
+    """Adding Connect with a facility another entry already uses is refused."""
+    mock_config_entry.add_to_hass(hass)
+    other = MockConfigEntry(
+        domain=DOMAIN,
+        version=2,
+        unique_id="192.168.1.51:502:2",
+        data={**entry_data(ConnectionType.MODBUS), CONF_HOST: "192.168.1.51"},
+    )
+    other.add_to_hass(hass)
+    result = await _reconfigure(hass, other, "reconfigure_cloud")
+
+    result = dict(await hass.config_entries.flow.async_configure(result["flow_id"], CLOUD_INPUT))
+
+    assert result["type"] is FlowResultType.ABORT
+    assert result["reason"] == "already_configured"
+    assert CONF_CLOUD not in other.data
+
+
 async def test_reconfigure_add_modbus(
     hass: HomeAssistant,
     mock_client: MagicMock,

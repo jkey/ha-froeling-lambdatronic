@@ -1,5 +1,6 @@
 """Tests for the button."""
 
+from dataclasses import replace
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -14,7 +15,7 @@ from pytest_homeassistant_custom_component.common import MockConfigEntry, snapsh
 from syrupy.assertion import SnapshotAssertion
 
 from . import setup_integration
-from .const import FACILITY_ID
+from .const import CLOUD_STATE, FACILITY_ID
 
 
 @pytest.fixture(autouse=True)
@@ -120,3 +121,19 @@ async def test_reset(
     await hass.services.async_call(BUTTON_DOMAIN, SERVICE_PRESS, {ATTR_ENTITY_ID: entity_id}, blocking=True)
 
     mock_cloud.set_value.assert_awaited_once_with(FACILITY_ID, key, True)
+
+
+async def test_reset_unavailable_without_remote_control(
+    hass: HomeAssistant, mock_client: MagicMock, mock_cloud: MagicMock, mock_config_entry: MockConfigEntry
+) -> None:
+    """The reset buttons need 'Fernschalten über connect möglich'; the Modbus button does not."""
+    mock_cloud.get_boiler_state.return_value = replace(CLOUD_STATE, remote_control_allowed=False)
+    await setup_integration(hass, mock_config_entry)
+
+    for entity_id in ("button.froling_pe1_reset_ash_counter", "button.froling_pe1_reset_pellet_counter"):
+        state = hass.states.get(entity_id)
+        assert state is not None
+        assert state.state == STATE_UNAVAILABLE
+    state = hass.states.get("button.froling_pe1_read_parameters")
+    assert state is not None
+    assert state.state != STATE_UNAVAILABLE

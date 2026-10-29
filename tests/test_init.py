@@ -1,11 +1,13 @@
 """Tests for setup, unload, availability, sources and devices."""
 
+from dataclasses import replace
 from datetime import timedelta
 from unittest.mock import MagicMock
 
 import pytest
 from froeling_lambdatronic import (
     AuthenticationError,
+    CloudHeader,
     ConnectionFailedError,
     NoResponseError,
     RateLimitedError,
@@ -24,6 +26,7 @@ from pytest_homeassistant_custom_component.common import MockConfigEntry, async_
 from pytest_homeassistant_custom_component.typing import WebSocketGenerator
 
 from custom_components.froeling_lambdatronic.const import (
+    CLOUD_MAX_FAILURES,
     CONF_CIRCULATION_PUMP,
     CONF_CLOUD_KEYS,
     CONF_EQUIPMENT,
@@ -36,7 +39,15 @@ from custom_components.froeling_lambdatronic.const import (
 from custom_components.froeling_lambdatronic.sources import Source
 
 from . import setup_integration
-from .const import CLOUD_COMPONENTS, EQUIPMENT_DATA, FACILITY_ID, cloud_components, cloud_overview, entry_data
+from .const import (
+    CLOUD_COMPONENTS,
+    EQUIPMENT_DATA,
+    FACILITY_ID,
+    SYSTEM_INFO,
+    cloud_components,
+    cloud_overview,
+    entry_data,
+)
 
 BOILER_TEMPERATURE = "sensor.froling_pe1_boiler_temperature"
 
@@ -777,6 +788,59 @@ async def test_cloud_info_failure(
     cloud_info = mock_config_entry.runtime_data.cloud_info
     assert cloud_info is not None
     assert cloud_info.last_update_success is False
+
+
+async def test_cloud_info_refresh(
+    hass: HomeAssistant,
+    mock_client: MagicMock,
+    mock_cloud: MagicMock,
+    mock_config_entry: MockConfigEntry,
+    device_registry: dr.DeviceRegistry,
+) -> None:
+    """System information and connection state are read again every hour."""
+    await setup_integration(hass, mock_config_entry)
+    connect = "binary_sensor.froling_pe1_froling_connect"
+    state = hass.states.get(connect)
+    assert state is not None
+    assert state.state == "on"
+    mock_cloud.get_header.return_value = CloudHeader(connect_state="OFFLINE", last_signal=None)
+    mock_cloud.get_system_info.return_value = replace(SYSTEM_INFO, core_module_version="V 50.05")
+
+    async_fire_time_changed(hass, dt_util.utcnow() + timedelta(minutes=61))
+    await hass.async_block_till_done()
+
+    assert mock_cloud.get_header.await_count == 2
+    state = hass.states.get(connect)
+    assert state is not None
+    assert state.state == "off"
+    entry_id = mock_config_entry.entry_id
+    boiler = device_registry.async_get_device_by_identifier((DOMAIN, entry_id), entry_id)
+    assert boiler is not None
+    assert boiler.sw_version == "V 50.05"
+
+
+async def test_cloud_only_unavailable_after_tolerance(
+    hass: HomeAssistant, mock_cloud: MagicMock, mock_config_entry_cloud: MockConfigEntry
+) -> None:
+    """Connect only: all entities keep their values for two failed reads, then become unavailable."""
+    await setup_integration(hass, mock_config_entry_cloud)
+    cloud = mock_config_entry_cloud.runtime_data.cloud
+    assert cloud is not None
+    mock_cloud.get_overview.side_effect = ConnectionFailedError("down")
+
+    for failures in range(1, CLOUD_MAX_FAILURES + 1):
+        await cloud.async_refresh()
+        await hass.async_block_till_done()
+        state = hass.states.get(BOILER_TEMPERATURE)
+        assert state is not None
+        assert state.state == ("61.0" if failures < CLOUD_MAX_FAILURES else STATE_UNAVAILABLE)
+
+    mock_cloud.get_overview.side_effect = None
+    await cloud.async_refresh()
+    await hass.async_block_till_done()
+    state = hass.states.get(BOILER_TEMPERATURE)
+    assert state is not None
+    assert state.state == "61.0"
 
 
 async def test_without_cloud_removes_cloud_leftovers(
