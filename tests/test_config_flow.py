@@ -1,5 +1,6 @@
 """Tests for the config, reconfigure, reauth and options flows."""
 
+from collections.abc import Mapping
 from typing import Any
 from unittest.mock import MagicMock, patch
 
@@ -21,6 +22,7 @@ from pytest_homeassistant_custom_component.common import MockConfigEntry
 from custom_components.froeling_lambdatronic.const import (
     CONF_CLOUD,
     CONF_CLOUD_INTERVAL,
+    CONF_CLOUD_KEYS,
     CONF_EQUIPMENT,
     CONF_FACILITY_ID,
     CONF_HEATING_CIRCUITS,
@@ -49,6 +51,11 @@ from .const import (
 MODBUS_INPUT = {CONF_HOST: HOST, "advanced": {CONF_PORT: 502, CONF_SLAVE: 2}}
 CLOUD_INPUT = {CONF_USERNAME: USERNAME, CONF_PASSWORD: PASSWORD}
 FACILITY = Facility(FACILITY_ID, "Home", "PE1 Pellet 20", "100000001")
+
+
+def _without_cloud_keys(data: Mapping[str, Any]) -> dict[str, Any]:
+    assert CONF_CLOUD_KEYS in data
+    return {key: value for key, value in data.items() if key != CONF_CLOUD_KEYS}
 
 
 async def _start(hass: HomeAssistant, connection: ConnectionType) -> dict[str, Any]:
@@ -378,7 +385,8 @@ async def test_reconfigure_same_gateway_reuses_client(
     result = dict(await hass.config_entries.flow.async_configure(result["flow_id"], {}))
 
     assert result["reason"] == "reconfigure_successful"
-    assert mock_config_entry.data == entry_data(ConnectionType.HYBRID)
+    # The reload after the flow stored the keys of the Connect overview again.
+    assert _without_cloud_keys(mock_config_entry.data) == entry_data(ConnectionType.HYBRID)
 
 
 @pytest.mark.usefixtures("mock_client", "mock_cloud")
@@ -440,7 +448,8 @@ async def test_reconfigure_add_modbus(
 
     assert result["reason"] == "reconfigure_successful"
     assert mock_config_entry_cloud.unique_id == UNIQUE_ID
-    assert mock_config_entry_cloud.data == entry_data(ConnectionType.HYBRID)
+    # The reload after the flow stored the keys of the Connect overview again.
+    assert _without_cloud_keys(mock_config_entry_cloud.data) == entry_data(ConnectionType.HYBRID)
 
 
 async def test_reconfigure_add_cloud(
@@ -458,7 +467,8 @@ async def test_reconfigure_add_cloud(
     result = dict(await hass.config_entries.flow.async_configure(result["flow_id"], CLOUD_INPUT))
 
     assert result["reason"] == "reconfigure_successful"
-    assert mock_config_entry_modbus.data == entry_data(ConnectionType.HYBRID)
+    # The reload after the flow stored the keys of the Connect overview again.
+    assert _without_cloud_keys(mock_config_entry_modbus.data) == entry_data(ConnectionType.HYBRID)
     assert mock_config_entry_modbus.unique_id == UNIQUE_ID
     assert mock_client.detect_equipment.await_count == detections + 1
 

@@ -24,6 +24,7 @@ from .const import (
     CONF_CIRCULATION_PUMP,
     CONF_CLOUD,
     CONF_CLOUD_INTERVAL,
+    CONF_CLOUD_KEYS,
     CONF_EQUIPMENT,
     CONF_FACILITY_ID,
     CONF_HEATING_CIRCUITS,
@@ -146,6 +147,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: FroelingConfigEntry) -> 
                 entry.async_on_unload(
                     async_call_later(hass, CLOUD_FIRST_RETRY, HassJob(_async_retry_cloud(cloud)))
                 )
+            elif entry.data.get(CONF_CLOUD_KEYS) != (keys := sorted(cloud.data.snapshot.values)):
+                # No update listener: storing does not reload the entry.
+                hass.config_entries.async_update_entry(entry, data={**entry.data, CONF_CLOUD_KEYS: keys})
         await cloud_info.async_refresh()
         if CONF_ROOM_SENSORS not in entry.data:
             # Before the platforms: the climate entities read the room sensors from the entry data.

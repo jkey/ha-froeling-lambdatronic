@@ -25,6 +25,7 @@ from pytest_homeassistant_custom_component.typing import WebSocketGenerator
 
 from custom_components.froeling_lambdatronic.const import (
     CONF_CIRCULATION_PUMP,
+    CONF_CLOUD_KEYS,
     CONF_EQUIPMENT,
     CONF_HEATING_CIRCUITS,
     CONF_ROOM_SENSORS,
@@ -358,6 +359,46 @@ async def test_setup_keeps_stored_room_sensors(
     assert mock_config_entry.data[CONF_ROOM_SENSORS] == []
     mock_cloud.get_components.assert_not_awaited()
     mock_cloud.get_component_detail.assert_not_awaited()
+
+
+@pytest.mark.usefixtures("mock_client")
+async def test_hybrid_cloud_keys_stored(hass: HomeAssistant, mock_cloud: MagicMock) -> None:
+    """Hybrid: the keys of the overview are stored; with Connect down they decide instead of the catalogue."""
+    entry = MockConfigEntry(
+        domain=DOMAIN, version=2, title="Fröling PE1", unique_id="192.168.1.50:502:2", data=entry_data()
+    )
+    await setup_integration(hass, entry)
+    stored = entry.data[CONF_CLOUD_KEYS]
+    assert "hc1_pump" in stored
+    assert "induced_draft_control" not in stored
+    assert stored == sorted(stored)
+
+    mock_cloud.get_overview.side_effect = ConnectionFailedError("down")
+    await hass.config_entries.async_reload(entry.entry_id)
+    await hass.async_block_till_done()
+
+    sources = entry.runtime_data.sources
+    assert sources.source("hc1_pump") is Source.CLOUD
+    # In the catalogue, but never reported by this facility's overview: no phantom entity.
+    assert sources.source("induced_draft_control") is None
+    assert entry.data[CONF_CLOUD_KEYS] == stored
+
+
+@pytest.mark.usefixtures("mock_client")
+@pytest.mark.parametrize("connection", [ConnectionType.MODBUS, ConnectionType.CLOUD])
+async def test_cloud_keys_only_hybrid(
+    hass: HomeAssistant, mock_cloud: MagicMock, connection: ConnectionType
+) -> None:
+    """Only next to Modbus the first Connect read can fail without failing the setup."""
+    entry = MockConfigEntry(
+        domain=DOMAIN,
+        version=2,
+        title="Fröling PE1",
+        unique_id=f"cloud:{FACILITY_ID}" if connection is ConnectionType.CLOUD else "192.168.1.50:502:2",
+        data=entry_data(connection),
+    )
+    await setup_integration(hass, entry)
+    assert CONF_CLOUD_KEYS not in entry.data
 
 
 async def test_hybrid_cloud_failure_does_not_block_setup(

@@ -28,6 +28,9 @@ CONF_FACILITY_ID: Final = "facility_id"
 # 0.2.0b2, or a detail read failed in the config flow): detected once at the setup from the first
 # Connect refresh, no room sensor while Connect fails.
 CONF_ROOM_SENSORS: Final = "room_sensors"
+# Sorted keys the Fröling Connect overview reported at the last setup next to Modbus. With Connect
+# down at a later setup they decide which cloud values get an entity, instead of the whole catalogue.
+CONF_CLOUD_KEYS: Final = "cloud_keys"
 
 DEFAULT_SCAN_INTERVAL: Final = 30
 MIN_SCAN_INTERVAL: Final = 10

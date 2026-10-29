@@ -30,7 +30,7 @@ from homeassistant.exceptions import HomeAssistantError, ServiceValidationError
 from homeassistant.helpers import issue_registry as ir
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 
-from .const import DOMAIN, ISSUE_PROTOCOL_DISABLED
+from .const import CONF_CLOUD_KEYS, DOMAIN, ISSUE_PROTOCOL_DISABLED
 from .coordinator import (
     CloudCoordinator,
     CloudData,
@@ -110,15 +110,19 @@ class FroelingSources:
             return Source.CLOUD
         return None
 
-    @staticmethod
-    def _cloud_has(key: str, cloud: CloudCoordinator) -> bool:
+    def _cloud_has(self, key: str, cloud: CloudCoordinator) -> bool:
         if cloud.data is not None and key in cloud.data.snapshot.values:
             return True
         # Not read: the first cloud update failed, or the device of the component is disabled
         # and therefore skipped. The catalogue decides, so that the entity exists (unavailable
-        # or disabled) and appears once the cloud answers or the device is enabled again.
-        component = key.split("_", 1)[0]
-        return cloud_ref(key) is not None and (cloud.data is None or component in cloud.skipped)
+        # or disabled) and appears once the cloud answers or the device is enabled again. After
+        # a failed first update the keys of an earlier overview narrow the catalogue down.
+        if cloud_ref(key) is None:
+            return False
+        if cloud.data is None:
+            known: list[str] | None = self.entry.data.get(CONF_CLOUD_KEYS)
+            return known is None or key in known
+        return key.split("_", 1)[0] in cloud.skipped
 
     def coordinator(self, source: Source) -> DataUpdateCoordinator[Any]:
         """Coordinator of a source."""
