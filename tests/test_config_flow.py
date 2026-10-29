@@ -51,6 +51,11 @@ from .const import (
 MODBUS_INPUT = {CONF_HOST: HOST, "advanced": {CONF_PORT: 502, CONF_SLAVE: 2}}
 CLOUD_INPUT = {CONF_USERNAME: USERNAME, CONF_PASSWORD: PASSWORD}
 FACILITY = Facility(FACILITY_ID, "Home", "PE1 Pellet 20", "100000001")
+OPTIONS = {
+    ConnectionType.MODBUS: {CONF_SCAN_INTERVAL: 60, CONF_PARAMETER_INTERVAL: 10},
+    ConnectionType.CLOUD: {CONF_CLOUD_INTERVAL: 5},
+    ConnectionType.HYBRID: {CONF_SCAN_INTERVAL: 60, CONF_PARAMETER_INTERVAL: 10, CONF_CLOUD_INTERVAL: 5},
+}
 
 
 def _without_cloud_keys(data: Mapping[str, Any]) -> dict[str, Any]:
@@ -573,6 +578,33 @@ async def test_reconfigure_remove_unexpected_error(
     assert result["reason"] == "reconfigure_successful"
 
 
+@pytest.mark.parametrize(
+    ("option", "expected"),
+    [
+        ("remove_cloud", OPTIONS[ConnectionType.MODBUS]),
+        ("remove_modbus", OPTIONS[ConnectionType.CLOUD]),
+        ("reconfigure_modbus", OPTIONS[ConnectionType.HYBRID]),
+    ],
+)
+@pytest.mark.usefixtures("mock_client", "mock_cloud")
+async def test_reconfigure_drops_stale_options(
+    hass: HomeAssistant, mock_config_entry: MockConfigEntry, option: str, expected: dict[str, int]
+) -> None:
+    """Removing a connection removes its intervals from the options; the others keep their values."""
+    await setup_integration(hass, mock_config_entry)
+    hass.config_entries.async_update_entry(mock_config_entry, options=OPTIONS[ConnectionType.HYBRID])
+    result = await _reconfigure(hass, mock_config_entry, option)
+
+    result = dict(
+        await hass.config_entries.flow.async_configure(
+            result["flow_id"], MODBUS_INPUT if option == "reconfigure_modbus" else {}
+        )
+    )
+
+    assert result["reason"] == "reconfigure_successful"
+    assert mock_config_entry.options == expected
+
+
 @pytest.mark.usefixtures("mock_client", "mock_cloud")
 async def test_reconfigure_remove_modbus_already_configured(
     hass: HomeAssistant, mock_config_entry: MockConfigEntry
@@ -584,13 +616,6 @@ async def test_reconfigure_remove_modbus_already_configured(
     result = dict(await hass.config_entries.flow.async_configure(result["flow_id"], {}))
     assert result["type"] is FlowResultType.ABORT
     assert result["reason"] == "already_configured"
-
-
-OPTIONS = {
-    ConnectionType.MODBUS: {CONF_SCAN_INTERVAL: 60, CONF_PARAMETER_INTERVAL: 10},
-    ConnectionType.CLOUD: {CONF_CLOUD_INTERVAL: 5},
-    ConnectionType.HYBRID: {CONF_SCAN_INTERVAL: 60, CONF_PARAMETER_INTERVAL: 10, CONF_CLOUD_INTERVAL: 5},
-}
 
 
 @pytest.mark.usefixtures("mock_client", "mock_cloud")

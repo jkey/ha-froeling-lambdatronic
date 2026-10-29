@@ -410,8 +410,12 @@ class FroelingConfigFlow(ConfigFlow, domain=DOMAIN):
         if self._cloud is not None:
             data[CONF_CLOUD] = dict(self._cloud)
         if self.source == SOURCE_RECONFIGURE:
+            entry = self._get_reconfigure_entry()
+            # Intervals of a removed connection no longer apply.
+            used = _default_options(data)
+            options = {key: value for key, value in entry.options.items() if key in used}
             return self.async_update_reload_and_abort(
-                self._get_reconfigure_entry(), unique_id=self.unique_id, data=data
+                entry, unique_id=self.unique_id, data=data, options=options
             )
         return self.async_create_entry(title=self._title, data=data, options=_default_options(data))
 
